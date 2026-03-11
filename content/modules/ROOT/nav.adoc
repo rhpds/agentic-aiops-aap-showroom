@@ -1,19 +1,10 @@
-* xref:index.adoc[What is Showroom?]
-
-.Content Developer Guide
-* xref:quick-start.adoc[Quick Start]
-* xref:content-repo.adoc[Creating a Content Repository]
-* xref:agnosticv-config.adoc[AgnosticV Configuration]
-* xref:ui-config.adoc[UI Configuration]
-* xref:user-data.adoc[User Data and Variables]
-* xref:attribute-example.adoc[Attribute Injection Example]
-* xref:ocp4-role-reference.adoc[OCP4 Role Reference]
-* xref:vm-role-reference.adoc[VM Role Reference]
-
-.Showroom Developer Guide
-* xref:architecture.adoc[Architecture]
-* xref:deployer.adoc[Showroom Deployer]
-* xref:images.adoc[Showroom Images]
-* xref:nookbag.adoc[Nookbag UI]
-* xref:ocp-integration.adoc[OCP Integration]
-* xref:contributing.adoc[Contributing]
+* Part 1: AIOps with Apache Remediation
+** xref:module-00.adoc[1. Log Enrichment and Prompt Generation Workflow]
+** xref:module-01.adoc[2. Remediation Workflow]
+* Part 2: AIOps with Network Automation
+** xref:module-02.adoc[3. Splunk]
+** xref:module-03.adoc[4. Event Driven Ansible - Splunk Webhook Setup]
+** xref:module-04.adoc[5. Network Workflow]
+* Part 3: AIOps with Windows Automation
+** xref:module-06.adoc[6. Windows Events and AI-Driven Ticketing]
+* xref:module-05.adoc[7. Summary and Call to Actions]

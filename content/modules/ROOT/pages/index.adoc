@@ -1,94 +1,242 @@
-= What is Showroom?
-:navtitle: What is Showroom?
+= {lab_name}
+:navtitle: Overview
+:numbered:
+:imagesdir: ../assets/images
 
-Showroom is a web-based lab instruction platform for the https://demo.redhat.com[Red Hat Demo Platform].
-It combines rendered AsciiDoc content with embedded terminals, consoles, and interactive tools -- giving workshop and demo participants everything they need in a single browser tab.
+image::aiops.png[aiops,55%,55%, link="_images/aiops.png", window=blank]
 
-== What Users See
+== Lab Introduction
 
-When a participant opens their Showroom URL they get a split-pane interface:
+In this lab, you will build an intelligent, self-healing automation workflow using:
 
-* **Left pane** -- step-by-step lab instructions rendered from an https://antora.org[Antora] site you author in AsciiDoc.
-* **Right pane** -- one or more tabs such as:
-** A web terminal (SSH to a bastion, containerised CLI tools, or both).
-** The OpenShift web console embedded in an iframe.
-** A VS Code editor (Code Server).
-** A VNC desktop (noVNC).
-** Any external URL you choose.
+- Red Hat AI for understanding service issues
+- Ansible Lightspeed to generate remediation playbooks
+- Ansible Automation Platform (AAP) workflows for orchestration
+- Event-Driven Ansible (EDA) to listen to real-time service events
 
-The UI layout, tab names, and tab URLs are all controlled by a simple `ui-config.yml` file that lives in your content repository.
+The goal is to showcase how **automation + AI** can be used to detect, analyze, and remediate application failures **without writing any playbooks manually**.  For a quick overview consider this ~2 minute https://youtu.be/a3fCHd2vTXU?si=L_5jGYZFtb3SzCJq[YouTube video^].  Quick plug! https://youtube.com/ansibleautomation?sub_confirmation=1[Please consider subscribing to the Ansible Team!^]
 
-== How It Gets Deployed
+== Background
 
-This Ansible collection -- `agnosticd.showroom` -- is the primary way Showroom instances are deployed on the Red Hat Demo Platform.
-Depending on the environment type, you use one of two roles:
+AIOps stands for *artificial intelligence* for IT operations. It refers both to a modern approach to managing IT operations and to the software systems that implement it. AIOps uses data science, big data, and machine learning to augment—or even automate—many of the processes traditionally handled manually by IT teams. Its goal is to improve issue detection, root cause analysis, and system resolution by making IT operations more intelligent and efficient. To read more about AIops there is a great article on https://www.redhat.com/en/topics/ai/what-is-aiops[redhat.com^].
 
-[cols="1,3",options="header"]
+In AIOps there are three major parts:
+
+- Observability
+- Inference
+- Automation
+
+image::aiops-circle.png[aiops diagram,55%,55%, link="_images/aiops-circle.png", window=blank]
+
+- *Observability* is the ability to understand the internal state of a system by collecting, analyzing, and visualizing data from logs, metrics, and traces.  This _can_ be another AI tool such as *IBM Instana Observability*.  For this lab we are simply relaying logs using https://www.elastic.co/beats/filebeat[Filebeat^], a Lightweight shipper for logs.  Ansible Automation Platform can integrate with observability tools using Event-Driven Ansible (EDA).
+
+- *Inference* - Inference in AI refers to the process of using a trained model to make predictions or decisions based on new, unseen data.  For this AIOps workflow we are using *Red Hat AI* for understanding service issues like an application outage, and *Ansible Lightspeed* to create an Ansible Playbook.
+
+- *Automation* is the ability to automatically detect, respond to, and resolve IT issues without human intervention.  We are using *Ansible Automation Platform* to tie observability and inference together directly to create workflows for self-healing infrastructure.
+
+It is important to note that AIOps can be adopted incrementally and it is not all or nothing.  You do not need to have fully self-healing infrastructure on day one to start realizing value.  At Red Hat we like to say: "Start small, think big!"
+
+
+== Lab Environment
+
+link:_images/lab_topology.png[image:lab_topology.png[lab_topology], window=blank]
+
+- A RHEL(Red Hat Enterprise Linux) node with Apache (`httpd`) installed
+- Filebeat monitoring Apache logs
+- Kafka acting as the event transport
+- Event-Driven Ansible is listening to Kafka and launching workflows based on defined rules
+- Red Hat AI to infer incident context from logs
+- Ansible Lightspeed to generate a remediation playbook
+- Gitea for source control management of Ansible Playbooks
+- Ansible Automation Platform to run job templates and workflows
+- Mattermost for message notifications
+- A Windows Server with Active Directory for Windows event-driven automation
+- Winlogbeat on Windows forwarding events to Kafka
+
+[quote]
+💡 EDA (Event-Driven Ansible) is part of Ansible Automation Platform.  It is referred to separately sometimes depending on the workflow.  EDA uses rulebooks to monitor events, then executes specified job templates or workflows based on the event.  Think of it simply as inputs and outputs.  EDA is an automatic way for inputs into Ansible Automation Platform, where Automation controller / Automation execution is the output (running a job template or workflow).
+
+== Workshop Agenda
+
+=== Workshop Duration
+
+This workshop consists of three independent parts:
+
+- *Part 1: AIOps with Apache Remediation* - 30-40 minutes
+- *Part 2: Network Automation* - 30-40 minutes
+- *Part 3: Windows Automation* - 15-20 minutes
+- *Total Workshop Time* - ~90 minutes
+
+For each workshop, there are 4 parts:
+
+1. *Event-Driven Ansible (EDA) Response* - Event Driven Ansible will respond to a systemd application outage
+
+2. *Log Enrichment and Prompt Generation Workflow* - Ansible Automation Platform (AAP) will retrieve systemd logs, coordinate with Red Hat AI to analyze the incident, notify Mattermost then automatically create a Job Template for us to use in the subsequent workflow.
+
+3. *Remediation Workflow* - This workflow will focus on automatically creating an Ansible Playbook to resolve the issue by using Ansible Lightspeed.  This workflow will take the prompt created by the previous workflow, request a playbook from Ansible Lightspeed, sync this playbook to Git and then automatically create a Job Template for us to remediate the issue.
+
+4. *Execute a remediation*
+* For part 1: *Execute HTTPD Remediation* - This is the final Job Template that will actually fix the application outage on the RHEL webserver.
+* For part 2: *AI Driven Ansible for Network Automation* - This lab synthesizes the AI skills from the preceding sections of the {lab_name} into a practical network automation scenario.
+
+[quote]
+💡 Could this all be one workflow? Yes.  This is purposely broken up at natural breakpoints where a human user can review what the AIOps workflow is doing and course correct if required.  This also allows organization to incrementally adopt AIOps workflows.  Organization can benefit greatly from any of these individual parts!
+
+Here is a diagram of the entire workflow:
+
+link:_images/overview_diagram.png[image:overview_diagram.png[overview_diagram], window=blank]
+
+[quote]
+❓ Why Mattermost? Mattermost is an open-source, self-hostable online chat service with file sharing, search, and third party application integrations. It is designed as an internal chat for organisations and companies, and mostly markets itself as an open-source alternative to Slack and Microsoft Teams.  It is used in this workshop as an example and can be replaced with any Chat or ITSM (e.g. *ServiceNow*) of your choice.  It is really easy to setup an individual Mattermost container per student in the workshop!
+
+[quote]
+❓ Why Gitea? Gitea is a self-hosted, open-source software development service that provides Git hosting, code review, team collaboration, package registry, and CI/CD, similar to platforms like GitHub, Bitbucket, and GitLab.  It could be replaced by *Github*, *Gitlab* or any Git service of your choosing.  It is a a very lightweight solution that works great for workshops.
+
+[quote]
+❓ Why Kafka? Apache Kafka is a distributed streaming platform used for building real-time data pipelines and streaming applications, enabling applications to publish, consume, and process high volumes of data streams.  It is all open-source and self hosted and works great for workshops.  This could be replaced by any event bus of your choosing.  Event-Driven Ansible has numerous plugins including integrations with AWS SQS, AWS CloudTrail, Azure Service Bus, Prometheus, dynatrace, IBM Instana, BigPanda, Zabbix, CyberArk and more.
+
+**I need more details!**
+
+image::more.png[give me more,400, link="_images/more.png", window=blank]
+
+Let’s take a closer look at each step in the workflow, broken down clearly for you.
+
+link:_images/workflow_diagram.png[image:workflow_diagram.png[workflow_diagram], window=blank]
+
+We will break this up into sections though!  As you go through each module we will break down each individual workflow and go step-by-step! Red Hat and Ansible Automation Platform will make AIOps simple for organizations to adopt and scale.
+
+== Access & Credentials
+
+All lab content is preconfigured and ready to run.
+
+=== Systems Overview
+
+This lab environment includes a variety of tools working together to demonstrate AI-driven remediation. You'll interact with the following systems:
+
+* Ansible Automation Platform (AAP) - Executes workflows and job templates. Already opened in your lab interface.
+* Gitea - Git service used to host the Lightspeed-generated playbook.
+* Mattermost - Used for automated notifications during log enrichment.
+* RHEL node - The webserver (`httpd`) that will experience and recover from failure.
+* Red Hat AI & Lightspeed - AI services that analyze logs and generate remediation content.
+
+=== Access Table
+
+[cols="2,2,2", options="header"]
 |===
-|Role |Use when...
+| System | URL | Credentials
 
-|`ocp4_workload_showroom`
-|Your lab runs on an OpenShift 4 cluster.
-The role deploys Showroom as a pod using a Helm chart, complete with content rendering, terminals, and an OpenShift `Route`.
+| Ansible Automation Platform
+| AAP is preloaded in the lab interface.
+Click link if you want to open it in full tab:
+link:{controller_url}[AAP Web UI^]
+| Username: `{controller_username}`
+Password: `{controller_password}`
 
-|`vm_workload_showroom`
-|Your lab runs on a VM (RHEL, Fedora, etc.).
-The role deploys Showroom with rootless Podman, Traefik for TLS, and systemd for lifecycle management.
+| Gitea
+| link:{gitea_url}[Gitea Web UI^]
+| Username: `{gitea_username}`
+Password: `{gitea_password}`
+
+| Mattermost
+| link:{mattermost_url}[Mattermost^]
+| Username: `{mattermost_username}`
+Password: `{mattermost_password}`
+
+| Splunk
+| link:{splunk_url}[Splunk^]
+| Username: `{splunk_username}`
+Password: `{splunk_password}`
+
 |===
 
-Both roles follow the same basic flow:
+'''
 
-. Clone your Antora content repository.
-. Inject runtime variables (credentials, hostnames, GUIDs) as AsciiDoc attributes.
-. Render the content to HTML.
-. Serve the content alongside the terminal and tab services you configured.
-. Publish the final URL back to the user.
+== Ready to Begin Part 1?
 
-== Key Concepts
+You now have everything you need to start the core AIOps lab! In the following modules, you'll break Apache, watch EDA respond, see Red Hat AI analyze the incident, and let Ansible Lightspeed generate a fix—all automatically.
 
-Content repository::
-A Git repo containing your AsciiDoc lab instructions, structured as an Antora component.
-You typically fork https://github.com/rhpds/showroom_template_nookbag[showroom_template_nookbag] and add your own pages.
-See xref:content-repo.adoc[].
+**Click the link at the bottom of this page** to proceed to the first module and begin your AIOps journey.
 
-AgnosticV catalog item::
-The YAML configuration in the https://github.com/rhpds/agnosticv[agnosticv] repository that ties your content repo to an environment on the Red Hat Demo Platform.
-See xref:agnosticv-config.adoc[].
+'''
 
-User data::
-A set of key-value pairs (hostnames, passwords, URLs) written by infrastructure roles during provisioning and automatically injected into your content as Antora attributes.
-See xref:user-data.adoc[].
+[NOTE]
+====
+**This lab has two independent parts!** You can complete Part 1, Part 2, or both—in any order. If you've already completed Part 1 and want to explore a more advanced scenario, feel free to skip ahead to Part 2.
+====
 
-UI configuration::
-A `ui-config.yml` file in your content repo that defines the tabs, layout width, and dynamic URLs shown alongside your lab instructions.
-See xref:ui-config.adoc[].
+== Part 2: AIOps with Network Automation
 
-== Where to Start
+image::splunk-logo.png[splunk,150, link="_images/splunk-logo.png", window=blank]
 
-[cols="1,3",options="header"]
+[IMPORTANT]
+====
+**Highly Recommended!** While Part 2 can be completed independently, we strongly encourage completing this section. Part 1 provides a **basic introduction** to AIOps concepts using Apache service remediation. Part 2 applies the same AIOps principles to a **more complex, real-world networking scenario**—demonstrating how AI-driven automation scales to handle sophisticated infrastructure challenges.
+====
+
+Part 2 applies the same three AIOps pillars you learned in Part 1—**Observability**, **Inference**, and **Automation**—to network infrastructure:
+
+* **Observability**: Splunk collects and analyzes syslog data from Cisco routers, detecting OSPF neighbor failures in real-time
+* **Inference**: Ansible Lightspeed with IBM watsonx Code Assistant generates network remediation playbooks based on natural language prompts describing OSPF troubleshooting scenarios
+* **Automation**: Event-Driven Ansible receives Splunk alerts and triggers AAP workflows that validate (check mode) and execute the AI-generated fixes automatically
+
+=== Network Lab Components
+
+The network environment includes:
+
+* **Splunk Enterprise** - Network observability and alerting platform
+* **Ansible Automation Platform** - Workflow orchestration and playbook execution
+* **Ansible Lightspeed** - AI-powered playbook generation for network scenarios
+* **Event-Driven Ansible** - Webhook listener that bridges Splunk alerts to AAP workflows
+* **Cisco Cat8000v Routers** - OSPF-configured network devices (running in OpenShift Virtualization)
+
+image::lab_topo.png[Lab Topology,150%,150%, link="_images/lab_topo.png", window=blank]
+
+=== How It Works: The Closed-Loop Network AIOps Workflow
+
+This lab demonstrates a complete observe → evaluate → respond loop for network automation:
+
+1. **Trigger**: A misconfiguration on cisco-rtr1 causes the OSPF neighbor relationship to drop (Tunnel0 interface)
+2. **Observe**: The router sends a syslog message to Splunk, which detects the "OSPF down" event and fires an alert
+3. **Evaluate**: The Splunk alert triggers an EDA webhook, launching the Network-AIOps-Workflow in AAP
+4. **Infer**: The workflow prompts Ansible Lightspeed to generate a remediation playbook specific to the OSPF failure scenario
+5. **Validate**: AAP runs the AI-generated playbook in check mode to preview changes before applying them
+6. **Respond**: After human approval, the playbook executes in run mode, automatically restoring the OSPF neighbor adjacency
+
+[quote]
+**Same AIOps Pattern, Different Domain**: Notice how Part 2 follows the exact same workflow structure as Part 1? The power of AIOps is that these patterns apply universally—whether you're fixing Apache services or troubleshooting complex network protocols. You'll explore three OSPF failure scenarios, each demonstrating how to codify expert network knowledge into automated, AI-generated remediation playbooks.
+
+=== What You'll Learn
+
+* How to integrate Splunk with Event-Driven Ansible for network event detection
+* Techniques for prompting Ansible Lightspeed code assistant to generate effective network automation playbooks
+* Best practices for validating AI-generated network changes before production deployment
+* Real-world OSPF troubleshooting scenarios: interface shutdown, network type mismatch, and hello timer configuration
+
+[quote]
+**Pre-configured Environment**: Most network components (workflows, projects, inventories, job templates, Gitea repository) are pre-loaded. You'll configure Splunk data inputs, verify EDA rulebook activations, and execute the OSPF troubleshooting scenarios to see the complete closed-loop automation in action.
+
+== What's Next?
+
+Lets get started!
+
+[cols="1,3", frame=none, grid=none]
 |===
-|Goal |Page
+a|
+image::aap_logo.png[aap_logo,120, link="_images/aap_logo.png", window=blank]
 
-|Get a Showroom lab running quickly
-|xref:quick-start.adoc[]
+a|
+**Part 1: AIOps with Apache Remediation** (Modules 1-2)
 
-|Create or structure a content repo
-|xref:content-repo.adoc[]
+A **basic introduction** to AIOps—learn the fundamentals by building a self-healing workflow for Apache service failures using Red Hat AI and Ansible Lightspeed.
 
-|Wire up an AgnosticV catalog item
-|xref:agnosticv-config.adoc[]
+**Part 2: AIOps with Network Automation** (Modules 3-5) _Highly Recommended_
 
-|Understand the full architecture
-|xref:architecture.adoc[]
-
-|Contribute to Showroom itself
-|xref:contributing.adoc[]
+Apply the same AIOps patterns to **network infrastructure**. Troubleshoot OSPF routing issues on Cisco routers using Splunk, Event-Driven Ansible, and Lightspeed-generated playbooks.
 |===
 
-== Related Projects
+[TIP]
+====
+**Choose your path:** Both parts are independent and can be completed in any order. New to AIOps? Start with Part 1. Already familiar with the basics or completed Part 1 previously? Jump straight to Part 2 for a deeper dive into network automation.
+====
 
-* https://github.com/agnosticd/showroom[agnosticd.showroom collection] -- this Ansible collection (you are here).
-* https://github.com/rhpds/showroom_template_nookbag[showroom_template_nookbag] -- the recommended content repo template.
-* https://github.com/rhpds/showroom-deployer[showroom-deployer] -- Helm charts that power OCP deployments.
-* https://github.com/rhpds/showroom-images[showroom-images] -- container images (content server, terminals, Antora, etc.).
-* https://github.com/rhpds/nookbag[nookbag] -- the zero-touch UI bundle.
+Click the link below to proceed to **Module 1: Log Enrichment and Prompt Generation Workflow**.

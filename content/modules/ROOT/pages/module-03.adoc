@@ -1,0 +1,122 @@
+= Section 4 - Event Driven Ansible
+
+What is Event-Driven Ansible?
+
+Event-Driven Ansible (EDA) is an automation capability that listens for events in your IT environment—like system alerts, security warnings, or network issues—and automatically triggers predefined actions in response. Instead of running tasks on a schedule, EDA uses "if-this-then-that" logic defined in Ansible Rulebooks to react to situations in real time.
+
+How does EDA create a feedback loop (Observe, Evaluate, Respond)?
+
+EDA works by creating a continuous, automated feedback loop that mirrors the Observe-Evaluate-Respond model:
+
+image::eda.png[EDA, 150%, link="_images/eda.png", window=blank]
+
+*Observe*: It constantly listens to event sources like monitoring tools (e.g., Prometheus, Datadog) or security systems for notifications about the state of your infrastructure.
+
+*Evaluate*: When an event is received, an Ansible Rulebook instantly evaluates it against a set of rules to determine what needs to be done.
+
+*Respond*: Based on the decision, it automatically executes an action, such as running an Ansible Playbook to fix the problem, update a system, or send a notification.
+
+*Key Applications*: Ticket Triage & Self-Healing Networks
+This automated loop directly enables advanced IT operations:
+
+*Automated Ticket Triage*: EDA can catch an alert, automatically run diagnostics, and then create a service desk ticket that is already enriched with all the necessary information, drastically reducing manual effort and response times.
+
+*Self-Healing Networks*: When a network monitoring tool detects a problem like a failed link, EDA can immediately trigger a playbook to re-route traffic and restore service without any human intervention, creating a resilient, self-healing system.
+
+In short, Event-Driven Ansible connects your tools, codifies your operational knowledge into rules, and automates your response to create faster, more reliable, and more efficient IT operations.
+
+== Event Driven Ansible Setup
+
+Earlier we configured a Splunk alert, now we need to configure Event Driven Ansible to receive the splunk alert as a webhook.
+
+=== Accessing EDA
+
+EDA is accessed from AAP. Login to AAP and then go to Automation Decisions from the left menu.
+
+[cols="2,2", options="header"]
+|===
+| Component
+| Value
+
+| Username
+| `{controller_username}`
+
+| Password
+| `{controller_password}`
+|===
+
+Step 1: Open EDA from the AAP tab
+
+image::bastion2.png[AAP, link="_images/bastion2.png", window=blank]
+
+Step 2: Navigate to "Automation Decisions" and select "Rulebook Activations"
+
+[quote]
+____
+The EDA controller has been pre-configured with the following:
+
+* **Project**: `ai-eda` - syncs from `https://github.com/ansible-tmm/aiops-summitlab.git`
+* **Rulebook Activation**: `OSPF Neighbor` - runs the `ospf.yml` rulebook
+* **Webhook Listener**: Listening on port 5000 for Splunk alerts
+
+These components were automatically created during lab provisioning. You just need to verify they're running correctly.
+____
+
+Step 3: Verify the Rulebook Activation is Running
+
+Look for the **OSPF Neighbor** rulebook activation and confirm it shows a "Running" status.
+
+image::rulebook_validate.png[rulebook validate, 150%, link="_images/rulebook_validate.png", window=blank]
+
+Step 4: Review the Rulebook `ospf.yml`
+
+To view the rulebook content, click on the **OSPF Neighbor** rulebook activation name, then navigate to the **Details** tab to see the rulebook source code.
+
+[quote]
+💡 **Tip:** You can also view the complete rulebook source code in the GitHub repository at https://github.com/ansible-tmm/aiops-summitlab/blob/main/rulebooks/ospf.yml[github.com/ansible-tmm/aiops-summitlab/rulebooks/ospf.yml^]. All playbooks and rulebooks used in this lab are available there.
+
+The rulebook should contain the following configuration:
+
+[source, YAML]
+----
+---
+- name: "Listen for OSPF neighbor events on a webhook"
+  hosts: all
+
+  sources:
+    - name: "Webhook listener for OSPF events"
+      ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5000
+
+  rules:
+    - name: "Process OSPF neighbor event from webhook"
+      condition: event.payload.search_name == 'ospf-neighbor'
+      actions:
+        - debug:
+            msg: |
+              ✅ OSPF Webhook Received!
+              Search Name: {{ event.payload.search_name }}
+              Triggering workflow...
+
+        - run_workflow_template:
+            name: "Network-AIOps-Workflow"
+            organization: "Default"
+            job_args:
+              extra_vars:
+                webhook_payload: "{{ event.payload }}"
+----
+This Event-Driven Ansible rulebook uses a webhook source plugin to listen for events on TCP port 5000. Its rule is configured to trigger an activation only when an incoming event payload contains the exact key-value pair of 'search_name': 'ospf-neighbor', which corresponds to the Splunk event configuration from the previous module. When this condition is met, the primary action is to launch the Network-AIOps-Workflow in the AAP controller. The entire webhook payload is passed to the workflow as an extra variable named webhook_payload, making the event data available for subsequent automation steps.
+
+== Summary
+
+At this point, you've verified that the EDA rulebook activation is running and listening for OSPF webhooks from Splunk. The **OSPF Neighbor** rulebook activation is now waiting to receive OSPF down messages from Splunk alerts.
+
+image::rulebook_history.png[history, 100%, link="_images/rulebook_history.png", window=blank]
+
+[quote]
+The rulebook activation history will show events as they are received from Splunk. In the next module, you'll trigger an OSPF neighbor down event and see how the entire closed-loop automation workflow responds automatically.
+
+== Complete
+
+You have verified the EDA controller configuration. In the next section, you'll see the complete AI-driven network automation workflow in action - from OSPF failure detection in Splunk, through Event-Driven Ansible triggering, to Lightspeed AI generating the remediation playbook automatically.

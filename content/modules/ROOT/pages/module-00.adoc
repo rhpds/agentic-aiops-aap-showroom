@@ -1,0 +1,337 @@
+= Section 1 - Log Enrichment and Prompt Generation Workflow
+
+== Objective
+
+In this section, we will build the first workflow called the **AI Insights and Lightspeed prompt generation** workflow. This workflow will be triggered by Event-Driven Ansible (EDA) whenever an issue is detected in the system. Specifically, this demo is set up to respond to an Apache (httpd) service failure.
+
+This workflow will check the status of the Apache service, notify a Mattermost channel with details, ask Red Hat AI to analyze the incident, and finally create a new job template using the AI-generated prompt for Ansible Lightspeed.
+
+image::enrichment_workflow_diagram.png[Enrichment and Prompt Generation Workflow, link="_images/enrichment_workflow_diagram.png", window=blank]
+
+By organizing these steps into a workflow, we simulate how multiple tools can collaborate to enrich a ticket or alert and prepare the remediation plan—all before a human even reviews the problem.
+
+[quote]
+⚠️ This workflow will be automatically triggered by EDA once the `❌ Break Apache` job template is run. You must create this workflow before simulating the failure.
+
+== Introducing AI with Ansible
+
+This lab uses a managed AI inference service powered by the **Granite LLM** model. You can interact with this AI using simple `curl` commands or trigger it through Job Templates via Ansible Automation Platform.
+
+[quote]
+💡 **Want to deploy your own AI infrastructure?** Red Hat AI can be deployed using Ansible Content Collections like `redhat.ai` (Certified) and `infra.ai` (Validated), available as part of your AAP subscription. These collections provide a validated path to deploy generative AI models using automation. For this lab, we're using a managed service to simplify the setup, but the same workflow concepts apply whether you're using a managed service or self-hosted AI infrastructure.
+
+=== Try It Yourself: Talk to the AI!
+
+Before diving into the workflow, let’s see how easy it is to test this out yourself.
+
+1. Open the **Terminal** in the lab.
+2. Run the following `curl` command:
+
+[source, shell, role="execute", subs="attributes+"]
+----
+curl -X POST {litellm_api_base_url}/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {litellm_virtual_key}" \
+  -d '{
+    "model": "{litellm_available_models_list}",
+    "prompt": "What is the capital of USA?",
+    "max_tokens": 100,
+    "temperature": 0
+  }' | jq -r '.choices[0].text'
+----
+
+You can also try real-world prompts like:
+
+[source, shell, role="execute", subs="attributes+"]
+----
+curl -X POST {litellm_api_base_url}/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {litellm_virtual_key}" \
+  -d '{
+    "model": "{litellm_available_models_list}",
+    "prompt": "systemd[1]: httpd.service: Failed with result exit-code. Suggest a fix for Apache.",
+    "max_tokens": 150,
+    "temperature": 0.6
+  }' | jq -r .choices[0].text
+----
+
+This returns a JSON response with helpful AI suggestions. This is exactly what’s being automated in the next step via the **🤖 RHEL AI: Analyze Incident** job template.
+
+== Exploring Mattermost Integration
+
+In this lab environment, we’ve included Mattermost, a lightweight, open-source chat client that serves as a central place to view error logs and AI insights as part of your AIOps workflow.
+
+Think of Mattermost as a stand-in for ServiceNow in this demonstration.
+
+[quote]
+💡 In a real-world production environment, you can easily replace Mattermost with ServiceNow (or any other ITSM tool). This enables a more advanced automated workflow, where tickets are automatically created and enriched with logs and insights — all before a human even picks up the ticket!
+
+=== Accessing Mattermost
+[cols="2,2", options="header"]
+|===
+| Component
+| Value
+
+| Mattermost URL
+| link:{mattermost_url}[Mattermost^]
+
+| Username
+| `{mattermost_username}`
+
+| Password
+| `{mattermost_password}`
+|===
+
+	1.	Open mattermost using the above details
+	2.	Click on “View in Browser” to open the console.
+	3.	Login using the credentials provided.
+  	4.      Click on the team "Automators".
+
+Once logged in, click on the Town Square channel from the left-hand navigation.
+
+image::mattermost_town_square_placeholder.png[Click on Town Square, link="_images/mattermost_town_square_placeholder.png", window="_blank"]
+
+=== What You’ll See in Town Square
+
+In the Town Square channel, you will eventually see:
+
+	•	🔍 Error logs from the Apache HTTPD service (collected by Filebeat and forwarded via Kafka)
+	•	🧠 AI Insights generated from the logs using RHEL AI
+
+This real-time feed mimics how production environments might use automated ticket enrichment — by capturing logs and insights and sending them directly to a ticketing system like ServiceNow.
+
+[quote]
+You won’t see any messages just yet — this step is simply to explain where Mattermost fits in and why this channel matters. Logs and insights will start appearing once the first workflow runs.
+
+[quote]
+💡 With this integration, you are essentially watching AI and automation work together — detecting the issue, diagnosing it, and preparing remediation guidance before anyone intervenes.
+
+
+== Build the Workflow
+
+[cols="2,2,2", options="header"]
+|===
+| System | URL | Credentials
+
+| Ansible Automation Platform
+| AAP is preloaded in the lab interface.
+Click link if you want to open it in full tab:
+link:{controller_url}[AAP Web UI^]
+| Username: `{controller_username}`
+Password: `{controller_password}`
+
+|===
+
+1. Login to Ansible Automation Platform.
+2. Go to Automation Execution → Templates.
+
+image::automation_execution_templates.png[automation_execution_templates, link="_images/automation_execution_templates.png", window=blank]
+
+[start=3]
+3. Click Create template → Create workflow job template.
+
+image::create_workflow.png[create_workflow,300, link="_images/create_workflow.png", window=blank]
+
+[start=4]
+4. Fill in the details:
+
+[options="header"]
+|===
+| Parameter | Value
+| Name | AI Insights and Lightspeed prompt generation
+| Organization | Default
+|===
+
+[start=5]
+5. Click Create workflow job template.
+
+image::create_workflow_job_template.png[create_workflow_job_template,300, link="_images/create_workflow_job_template.png", window=blank]
+
+[start=6]
+6. You’ll see the empty workflow visualizer.
+
+image::currently_no_nodes_workflow.png[currently_no_nodes_workflow,400, link="_images/currently_no_nodes_workflow.png", window=blank]
+
+[start=7]
+7. Add the Apache Service Status Check node:
+
+[options="header"]
+|===
+| Parameter | Value
+| Node type | Job Template
+| Job Template | ⚙️ Apache Service Status Check
+| Convergence | Any
+| Node alias | (You can leave this blank)
+|===
+
+image::add_apache_status_check_step.png[Add Apache Status Check Step, link="_images/add_apache_status_check_step.png", window=blank]
+
+[start=8]
+8. Click Next, then Finish.
+
+image::blue_next_button.png[blue_next_button,150, link="_images/blue_next_button.png", window=blank]
+image::blue_finish_button.png[blue_finish_button,150, link="_images/blue_finish_button.png", window=blank]
+
+[start=9]
+9. Visual after first node:
+
+image::workflow_after_apache_status_node.png[Workflow after Apache node, link="_images/workflow_after_apache_status_node.png", window=blank]
+
+[start=10]
+10. Add RHEL AI: Analyze Incident step:
+
+11. Click on the three dots (⋮ kebab menu) next to the *⚙️ Apache Service Status Check* node.
+
+12. Click on *⊕ Add step and link* to insert the next node into the workflow.
+
+image::workflow_add_step_and_link.png[workflow_add_step_and_link,200, link="_images/workflow_add_step_and_link.png", window=blank]
+
+[options="header"]
+|===
+| Parameter | Value
+| Node type | Job Template
+| Job Template | 🤖 RHEL AI: Analyze Incident
+| Status | Run on success
+| Convergence | Any
+| Node alias | (You can leave this blank)
+|===
+
+image::add_rhel_ai_step.png[Add RHEL AI Step, link="_images/add_rhel_ai_step.png", window=blank]
+
+[start=13]
+13. Click Next, then Finish.
+
+image::blue_next_button.png[link="_images/blue_next_button.png", window=blank]
+image::blue_finish_button.png[link="_images/blue_finish_button.png", window=blank]
+
+[start=14]
+14. Workflow with two nodes:
+
+image::workflow_after_rhel_ai_step.png[After RHEL AI step, link="_images/workflow_after_rhel_ai_step.png", window=blank]
+
+[start=15]
+15. Add Notify via Mattermost:
+
+16. Click on the three dots (⋮ kebab menu) next to the *🤖 RHEL AI: Analyze Incident* node.
+
+17. Click on *⊕ Add step and link* to insert the next node into the workflow.
+
+image::workflow_add_step_and_link.png[workflow_add_step_and_link,200, link="_images/workflow_add_step_and_link.png", window=blank]
+
+[options="header"]
+|===
+| Parameter | Value
+| Node type | Job Template
+| Job Template | 📣 Notify via Mattermost
+| Status | Run on success
+| Convergence | Any
+| Node alias | (You can leave this blank)
+|===
+
+image::add_mattermost_step.png[Add Mattermost Step, link="_images/add_mattermost_step.png", window=blank]
+
+[start=18]
+18. Click Next, then Finish.
+
+image::workflow_after_mattermost_step.png[After Mattermost step, link="_images/workflow_after_mattermost_step.png", window=blank]
+
+[start=19]
+19. Add Build Ansible Lightspeed Job Template:
+
+20. Click on the three dots (⋮ kebab menu) next to the *📣 Notify via Mattermost* node.
+
+21. Click on *⊕ Add step and link* to insert the next node into the workflow.
+
+image::workflow_add_step_and_link.png[workflow_add_step_and_link,200, link="_images/workflow_add_step_and_link.png", window=blank]
+
+[options="header"]
+|===
+| Parameter | Value
+| Node type | Job Template
+| Job Template | ⚙️ Build Ansible Lightspeed Job Template
+| Status | Run on success
+| Convergence | Any
+| Node alias | (You can leave this blank)
+|===
+
+image::add_lightspeed_jt_creator.png[Add Lightspeed JT Creator Step, link="_images/add_lightspeed_jt_creator.png", window=blank]
+
+[start=21]
+22. Click Next, then Finish.
+
+image::blue_next_button.png[link="_images/blue_next_button.png", window=blank]
+image::blue_finish_button.png[link="_images/blue_finish_button.png", window=blank]
+
+[start=23]
+23. Final workflow visual:
+
+image::workflow_final_prompt_generation.png[Final Workflow, link="_images/workflow_final_prompt_generation.png", window=blank]
+
+[start=24]
+24. Click Save to finalize.
+
+image::save_button.png[link="_images/save_button.png", window=blank]
+
+== Trigger the Workflow
+
+[start=25]
+25. Run the `❌ Break Apache` job template. This inserts an invalid directive in Apache config and restarts the service.
+
+image::run_break_apache.png[link="_images/run_break_apache.png", window=blank]
+
+[start=26]
+26. Go to Automation Decisions(Event-Driven Ansible) → Rulebook Activations. Confirm EDA(Event-Driven Ansible) picked up the event.
+
+image::eda_trigger_capture.png[link="_images/eda_trigger_capture.png", window=blank]
+
+[start=27]
+27. Go to Automation Controller → Jobs. Confirm workflow execution. When the workflow completes you will see a green ✅ Success.
+
+image::workflow_triggered_jobs.png[link="_images/workflow_triggered_jobs.png", window=blank]
+
+
+[start=28]
+28. Go to Templates and you should be able to see a new job template called "🧠 Lightspeed Remediation Playbook Generator" generated. This step also creates a blank Workflow Job Template called "Remediation Workflow" that will be used in next challenge.
+
+== Final Checks & Observations
+
+Before you move on to the remediation phase, take a moment to explore the **Mattermost Town Square** channel.
+
+Here’s what to look for:
+
+- 🛑 *HTTPD Error Logs*: These logs were automatically collected from the webserver.
+- 🧠 *AI Insights (RCA)*: Red Hat AI parsed the logs and generated a root cause analysis. These insights help you understand exactly **why** the failure occurred.
+
+This is what real-world AIOps looks like! Imagine this in a production setting:
+
+[quote]
+💡 A ticket appears in your ITSM tool with:
+- Attached logs
+- Root Cause Analysis (RCA)
+- A prompt ready for Lightspeed to generate the fix
+
+And all of this *before anyone has even opened the ticket*.
+
+We used **Mattermost** in this lab because it's a lightweight, open-source chat platform that’s easy to run per student. But the same flow would work with **ServiceNow**, **Jira**, or any ITSM of your choice.
+
+[quote]
+💡 Think of this as **automated ticket enrichment**. Logs and RCA can be pre-attached to incidents or alerts, helping teams respond faster and more effectively.
+
+link:_images/mattermost_logs_and_rca_placeholder.png[image:mattermost_logs_and_rca_placeholder.png[Mattermost logs and RCA message preview], window=_blank]
+
+🎯 In short: You now have an intelligent incident response pipeline that goes from *failure detection* to *context* to *fix suggestion* — powered by Red Hat AI and Ansible Automation Platform.
+
+== Summary
+
+You created a workflow that:
+
+* Uses logs for root cause analysis via Red Hat AI
+
+* Notifies Mattermost
+
+* Prepares a Lightspeed prompt for automated playbook generation
+
+In the next step, we’ll use that prompt to fix Apache automatically!
+
+== Complete
+You have completed this module. Move forward to the next one to use the created templates.
