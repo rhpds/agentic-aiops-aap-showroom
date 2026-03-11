@@ -1,7 +1,7 @@
 ---
 site:
-  title: Showroom Template Demo
-  url: https://github.com/rhpds/showroom_template_nookbag
+  title: LB2759 - Unlocking the agentic future of AIOps with Ansible Automation Platform
+  url: https://github.com/rhpds/agentic-aiops-aap-showroom.git
   start_page: modules::index.adoc
 
 content:
