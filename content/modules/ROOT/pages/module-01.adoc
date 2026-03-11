@@ -237,6 +237,21 @@ You are now done creating the workflow!
 
 image::save_button.png[save_button,150, link="_images/save_button.png", window=blank]
 
+=== Verify workflow structure
+
+Before launching the workflow, confirm it's built correctly:
+
+✅ **Expected result:**
+
+* Workflow named "Remediation Workflow" exists
+* Workflow contains 4 nodes in sequence:
+  1. 🧠 Lightspeed Remediation Playbook Generator
+  2. 🧾 Commit Fix to Gitea
+  3. Lightspeed-Playbooks (Project Sync)
+  4. ⚙️ Build HTTPD Remediation Template
+* All nodes connected with "Run on success"
+* Workflow is saved and ready to execute
+
 [start=26]
 26. Exit out of the Workflow Visualizer by clicking the *x* at the top right
 

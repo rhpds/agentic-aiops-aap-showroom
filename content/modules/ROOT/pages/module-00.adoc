@@ -282,6 +282,23 @@ image::workflow_final_prompt_generation.png[Final Workflow, link="_images/workfl
 
 image::save_button.png[link="_images/save_button.png", window=blank]
 
+=== Verify workflow creation
+
+Before triggering the workflow, verify you have successfully created it:
+
+✅ **Expected result:**
+
+* Workflow named "AI Insights and Lightspeed prompt generation" exists in Templates list
+* Workflow contains 4 nodes in sequence:
+  1. ⚙️ Apache Service Status Check
+  2. 🤖 RHEL AI: Analyze Incident
+  3. 📣 Notify via Mattermost
+  4. ⚙️ Build Ansible Lightspeed Job Template
+* All nodes show green connections (Run on success)
+* Workflow is saved and ready to launch
+
+If your workflow matches this configuration, proceed to trigger it.
+
 == Trigger the Workflow
 
 [start=25]
