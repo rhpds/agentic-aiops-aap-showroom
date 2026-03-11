@@ -6,6 +6,16 @@ In this section, we will build the first workflow called the **AI Insights and L
 
 This workflow will check the status of the Apache service, notify a Mattermost channel with details, ask Red Hat AI to analyze the incident, and finally create a new job template using the AI-generated prompt for Ansible Lightspeed.
 
+== Learning Objectives
+
+After completing this module, you will be able to:
+
+* Create a workflow job template in Ansible Automation Platform
+* Connect Red Hat AI inference services to analyze system logs
+* Configure Mattermost integration for incident notifications
+* Use AI-generated prompts to prepare for automated remediation
+* Understand how Event-Driven Ansible triggers workflows automatically
+
 image::enrichment_workflow_diagram.png[Enrichment and Prompt Generation Workflow, link="_images/enrichment_workflow_diagram.png", window=blank]
 
 By organizing these steps into a workflow, we simulate how multiple tools can collaborate to enrich a ticket or alert and prepare the remediation plan—all before a human even reviews the problem.
@@ -18,7 +28,7 @@ By organizing these steps into a workflow, we simulate how multiple tools can co
 This lab uses a managed AI inference service powered by the **Granite LLM** model. You can interact with this AI using simple `curl` commands or trigger it through Job Templates via Ansible Automation Platform.
 
 [quote]
-💡 **Want to deploy your own AI infrastructure?** Red Hat AI can be deployed using Ansible Content Collections like `redhat.ai` (Certified) and `infra.ai` (Validated), available as part of your AAP subscription. These collections provide a validated path to deploy generative AI models using automation. For this lab, we're using a managed service to simplify the setup, but the same workflow concepts apply whether you're using a managed service or self-hosted AI infrastructure.
+💡 **Want to deploy your own AI infrastructure?** Red Hat AI can be deployed using Ansible Content Collections like `redhat.ai` (Certified) and `infra.ai` (Validated), available as part of your Ansible Automation Platform (AAP) subscription. These collections provide a validated path to deploy generative AI models using automation. For this lab, we're using a managed service to simplify the setup, but the same workflow concepts apply whether you're using a managed service or self-hosted AI infrastructure.
 
 === Try It Yourself: Talk to the AI!
 

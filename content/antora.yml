@@ -1,5 +1,9 @@
 name: modules
-title: Showroom Collection
+title: LB2759 - Unlocking the agentic future of AIOps with Ansible Automation Platform
 version: ~
 nav:
   - modules/ROOT/nav.adoc
+asciidoc:
+  attributes:
+    lab_name: "LB2759 - Unlocking the agentic future of AIOps with Ansible Automation Platform"
+

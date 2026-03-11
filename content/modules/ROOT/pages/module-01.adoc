@@ -14,6 +14,16 @@ By separating these two parts into distinct workflows, we allow for manual revie
 [quote]
 ⚠️ Reminder that the way we purposely broke httpd with the *❌ Break Apache* Job Template was by inserting *InvalidDirectiveHere* into the configuration file and restarting the service.  This crashed the httpd service as you can see by running the *systemctl status httpd.service* Linux command.
 
+== Learning Objectives
+
+After completing this module, you will be able to:
+
+* Build a remediation workflow using AI-generated prompts
+* Use Ansible Lightspeed to automatically generate remediation playbooks
+* Commit AI-generated playbooks to source control (Gitea)
+* Review and validate AI-generated automation code before execution
+* Execute automated remediation to fix service failures
+
 == Verify webserver failure
 
 1. Connect to your bastion host either via SSH or Visual Studio Code.  The connection information is provided by your instructor.
@@ -406,7 +416,7 @@ You have successfully completed the **basic introduction** to AIOps! You've expe
 
 * ✅ Built an AI-powered log enrichment workflow
 * ✅ Used Red Hat AI to analyze incidents and generate insights
-* ✅ Leveraged Ansible Lightspeed to automatically create remediation playbooks
+* ✅ Used Ansible Lightspeed to automatically create remediation playbooks
 * ✅ Fixed a broken Apache service without writing a single line of playbook code
 
 '''

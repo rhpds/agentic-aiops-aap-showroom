@@ -3,6 +3,16 @@
 [quote]
 **Part 2: AIOps with Network Automation** - Welcome to Part 2! In Part 1, you learned how Red Hat AI and Ansible Lightspeed work together to create self-healing infrastructure for Apache services. Now you'll apply those same AIOps concepts to **network infrastructure**, using Splunk for observability, Event-Driven Ansible for automation triggers, and Ansible Lightspeed code assistant to generate network remediation playbooks automatically.
 
+== Learning Objectives
+
+After completing this module, you will be able to:
+
+* Configure Splunk data inputs to receive network syslog messages
+* Create Splunk alerts for OSPF neighbor state changes
+* Set up webhook integration between Splunk and Event-Driven Ansible
+* Configure Cisco routers to forward syslog messages to Splunk
+* Verify network observability data flow from routers to Splunk
+
 == What is Splunk?
 
 In this lab environment, we use Splunk to send events into Ansible Automation Platform using Event-Driven Ansible. Splunk collects and indexes log data from network sources in real time, enabling fast and flexible searching and analysis. Based on a Splunk search for OSPF-related events, we configure a Splunk alert that sends a webhook to Event-Driven Ansible to trigger automation.
@@ -10,12 +20,12 @@ In this lab environment, we use Splunk to send events into Ansible Automation Pl
 Think of Splunk as an observability tool.
 
 [quote]
-Observability tools, such as Splunk, Prometheus, Grafana, Dynatrace, and others, provide deep insights into the health and performance of IT systems. They excel at collecting metrics, logs, and traces to identify when something is wrong. However, they traditionally rely on human intervention to interpret the alerts and take corrective action. This is where Ansible EDA steps in, creating a powerful synergy.
+Observability tools, such as Splunk, Prometheus, Grafana, Dynatrace, and others, provide deep insights into the health and performance of IT systems. They excel at collecting metrics, logs, and traces to identify when something is wrong. However, they traditionally rely on human intervention to interpret the alerts and take corrective action. This is where Ansible EDA steps in, creating effective integration between observability and automation.
 
 == Splunk Setup and Router Configuration
 
 === Red Hat + Splunk
-The integration between Red Hat Ansible Automation Platform and Splunk creates a powerful, two-way bridge that transforms IT operations by connecting Splunk's deep data analysis and observability with Ansible's robust automation capabilities. This is achieved through an add-on that allows for a seamless flow of information. 
+The integration between Red Hat Ansible Automation Platform and Splunk creates a two-way bridge that transforms IT operations by connecting Splunk's deep data analysis and observability with Ansible's automation capabilities. This is achieved through an add-on that allows for a seamless flow of information. 
 
 image::redhat_splunk.png[Red Hat + Splunk, 100%, link="_images/redhat_splunk.png", window=blank]
 

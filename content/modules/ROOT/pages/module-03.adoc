@@ -25,6 +25,16 @@ This automated loop directly enables advanced IT operations:
 
 In short, Event-Driven Ansible connects your tools, codifies your operational knowledge into rules, and automates your response to create faster, more reliable, and more efficient IT operations.
 
+== Learning Objectives
+
+After completing this module, you will be able to:
+
+* Understand the Observe-Evaluate-Respond feedback loop in Event-Driven Ansible
+* Verify that EDA rulebook activations are running correctly
+* Review rulebook configurations for webhook listeners
+* Explain how EDA integrates with observability tools like Splunk
+* Prepare EDA to automatically trigger workflows based on network events
+
 == Event Driven Ansible Setup
 
 Earlier we configured a Splunk alert, now we need to configure Event Driven Ansible to receive the splunk alert as a webhook.

@@ -3,6 +3,17 @@ The workflow used in this Lab is called the **Network-AIOps-Workflow**. This wor
 
 image::network-aiops-workflow.png[Network AI Workflow, link="_images/network-aiops-workflow.png", window=blank]
 
+== Learning Objectives
+
+After completing this module, you will be able to:
+
+* Execute AI-driven network troubleshooting workflows for OSPF failures
+* Use Ansible Lightspeed to generate network remediation playbooks from natural language prompts
+* Run AI-generated playbooks in check mode to validate changes before applying them
+* Troubleshoot three common OSPF failure scenarios (interface down, network type mismatch, hello timer mismatch)
+* Review and approve AI-generated network automation code through human-in-the-loop validation
+* Verify OSPF neighbor adjacency restoration using Splunk dashboards
+
 == Scenarios
 The essence of the following scenarios is to empower a network expert to translate their manual OSPF troubleshooting rationale into intelligent, automated playbooks. Using a development pipeline, the expert creates and refines prompts for Ansible Lightspeed to generate the necessary automation code. To ensure safety and accuracy, a workflow allows the expert to first run each AI-generated playbook in check mode. This provides an opportunity to review and approve the proposed changes before they are applied to production. If a playbook doesn't work as intended, the expert can simply continue to refine their prompt in this iterative cycle until the desired outcome is achieved.
 
@@ -552,9 +563,9 @@ Output:
 
 == Summary
 
-This Lab successfully implemented a closed-loop, AI-driven network automation workflow. We began by integrating Cisco OSPF monitoring with Splunk alerting. Subsequently, an Event-Driven Ansible (EDA) rulebook was configured to act on these alerts, establishing an operational feedback loop. This final module leveraged that loop to trigger an AI workflow, which dynamically generates a remediation playbook. This powerful new capability allowed us to successfully stage, test, and automate troubleshooting for three distinct OSPF failure scenarios. 
+This Lab successfully implemented a closed-loop, AI-driven network automation workflow. We began by integrating Cisco OSPF monitoring with Splunk alerting. Subsequently, an Event-Driven Ansible (EDA) rulebook was configured to act on these alerts, establishing an operational feedback loop. This final module used that loop to trigger an AI workflow, which dynamically generates a remediation playbook. This new capability allowed us to successfully stage, test, and automate troubleshooting for three distinct OSPF failure scenarios. 
 
-By leveraging Ansible Lightspeed, our network expert could focus on codifying their troubleshooting knowledge in plain language, rather than getting bogged down in low-level syntax like playbook conditionals, operators, or regular expressions. This same process could easily be leveraged to iterate additional trouble shooting scenarios into the same playbook or refactored as roles.
+By using Ansible Lightspeed, our network expert could focus on codifying their troubleshooting knowledge in plain language, rather than getting bogged down in low-level syntax like playbook conditionals, operators, or regular expressions. This same process could easily be used to iterate additional trouble shooting scenarios into the same playbook or refactored as roles.
 
 == Congratulations! You've Completed Part 2!
 
