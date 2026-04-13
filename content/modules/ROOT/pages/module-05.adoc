@@ -1,4 +1,4 @@
-= Section 7 - Summary and Call to Actions
+= Section 8 - Summary and Call to Actions
 
 🎉 **Congratulations!** You have completed the {lab_name}!
 
@@ -8,7 +8,7 @@ image::thumbs-up.gif[thumbsup!, link="_images/thumbs-up.gif", window=blank]
 
 == What You Accomplished
 
-Throughout this lab, you experienced the power of AI-driven automation across three domains:
+Throughout this lab, you experienced the power of AI-driven automation across multiple domains:
 
 === Part 1: AIOps with Apache Remediation
 * Built an intelligent log enrichment workflow using Red Hat AI
@@ -25,6 +25,13 @@ Throughout this lab, you experienced the power of AI-driven automation across th
 * Automatically generated Mattermost tickets from Windows event payloads
 * Used AI to analyze Windows Firewall changes and enrich tickets with expert insights
 * Demonstrated platform-agnostic AIOps across Linux, network devices, and Windows
+
+=== Part 4: AI-Driven Incident Response with MCP
+* Used Claude Code with MCP to interactively query and control AAP through natural language
+* Ran autonomous CrewAI agents that triaged, remediated, and reported on incidents
+* Combined Event-Driven Ansible with AI agents in an AAP workflow
+* Explored the evolution from static playbooks to agentic automation
+* Previewed how the AAP Orchestrator will unify agents and playbooks natively
 
 == Summary of Job Templates
 

@@ -1,0 +1,391 @@
+= Section 8 - AI-Driven Incident Response with MCP
+:navtitle: AI-Driven Incident Response with MCP
+
+== Objective
+
+*Estimated time: 30-40 minutes*
+
+In this section, you will explore a fundamentally different approach to AIOps. Instead of pre-built workflows and prompts, you will use AI agents that can directly interact with Ansible Automation Platform through the *Model Context Protocol (MCP)* -- an open standard that lets AI models discover and use tools in real time.
+
+You will work through three challenges that progressively increase the level of AI autonomy:
+
+1. *Challenge 1*: You drive the AI -- use Claude Code to interactively query and control AAP
+2. *Challenge 2*: AI drives AAP -- autonomous CrewAI agents triage, fix, and report on incidents
+3. *Challenge 3*: Combine both -- trigger AI agents through Event-Driven Ansible and AAP workflows
+
+== What is MCP?
+
+The *Model Context Protocol (MCP)* is an open standard that allows AI models to discover and use external tools. Think of it as a USB-C port for AI -- a universal connector that lets any AI system plug into any tool server.
+
+In this lab, Ansible Automation Platform hosts an MCP server that exposes AAP capabilities as tools:
+
+* *Job Management* -- list, launch, and monitor job templates
+* *Inventory Management* -- query hosts, groups, and inventories
+* *Security* -- manage credentials and audit activity
+
+Any MCP-compatible AI client can discover these tools automatically and use them to interact with AAP -- no custom API integration code required.
+
+== Learning objectives
+
+After completing this section, you will be able to:
+
+* Use an AI coding assistant (Claude Code) to interact with AAP through MCP
+* Run autonomous AI agents (CrewAI) that triage and remediate incidents using AAP
+* Combine Event-Driven Ansible with AI agents for automated incident response
+* Articulate the difference between human-in-the-loop and autonomous AI automation
+* Understand how the upcoming AAP Orchestrator will unify these approaches
+
+'''
+
+== Challenge 1: Human-in-the-loop with Claude Code
+
+In this challenge, you will use Claude Code -- an AI coding assistant -- to interact with AAP through natural language. Claude Code connects to the AAP MCP server and discovers available tools automatically. You stay in control: you ask questions, review results, and decide what actions to take.
+
+=== Step 1: Open VS Code
+
+1. Click the *@Codeserver* tab in your lab interface
+2. Log in with your lab credentials if prompted:
+   * Username: `{ssh_user}`
+   * Password: `{ssh_password}`
+
+=== Step 2: Open Claude Code
+
+1. Open a terminal in VS Code (*Terminal* -> *New Terminal*)
+2. Claude Code is pre-installed. Start it by typing:
++
+[source,bash]
+----
+claude
+----
++
+3. You should see the Claude Code interface ready for input
+
+=== Step 3: Explore AAP through natural language
+
+Claude Code is already connected to the AAP MCP server. Try the following prompts one at a time. After each prompt, observe which MCP tools Claude calls and what data it returns.
+
+*Prompt 1 -- Discover available automation:*
+
+[source,text]
+----
+What job templates are available in AAP? List them with their IDs and descriptions.
+----
+
+Observe how Claude calls the `job_templates_list` MCP tool and presents the results in a readable format.
+
+*Prompt 2 -- Check infrastructure status:*
+
+[source,text]
+----
+What hosts are registered in AAP? Which inventories do they belong to?
+----
+
+Notice how Claude queries both the hosts and inventories MCP tools to build a complete picture.
+
+*Prompt 3 -- Investigate recent activity:*
+
+[source,text]
+----
+Show me the most recent jobs that have run. Were there any failures?
+----
+
+Claude uses the `jobs_list` tool to retrieve recent job history and highlights any failures.
+
+*Prompt 4 -- Take action (diagnose a problem):*
+
+[source,text]
+----
+Launch the "Apache Service Status Check" job template and show me the results when it completes.
+----
+
+Watch how Claude launches the job, polls for completion, and retrieves the output -- all through MCP tool calls.
+
+=== Step 4: Try your own prompts
+
+Now experiment on your own. Here are some ideas:
+
+* "What credentials are configured in AAP?"
+* "Launch the Restore Apache template and wait for it to finish"
+* "Check the status of job ID 5 and show me its output"
+* "Which templates target node1?"
+
+=== What you learned
+
+* Claude Code *discovers* AAP capabilities through MCP -- no configuration needed
+* You stay in control -- the AI suggests actions, you approve them
+* MCP provides a *standardized* way for AI to interact with AAP
+* This is the *human-in-the-loop* model: AI assists, human decides
+
+'''
+
+== Challenge 2: Autonomous agents with CrewAI
+
+In this challenge, you move from human-in-the-loop to *autonomous agents*. CrewAI is a Python framework for building multi-agent systems where specialized AI agents collaborate to complete tasks without human intervention.
+
+The incident agent has three specialists:
+
+* *Triage Agent* -- discovers available automation, confirms the target host, and creates an action plan
+* *Executor Agent* -- launches the recommended job templates, monitors their progress, and collects results
+* *Reporter Agent* -- summarizes the entire incident response into a concise report
+
+Each agent uses the same MCP server as Claude Code, but operates autonomously.
+
+=== Step 1: Open the terminal
+
+1. Click the *>_Terminal-01* tab in your lab interface, or use the VS Code terminal
+2. Navigate to the agent directory and activate the Python virtual environment:
++
+[source,bash]
+----
+cd ~/agentic-aiops
+source ~/.venv/bin/activate
+----
+
+=== Step 2: Run the triage agent
+
+Run only the triage agent first to see how it analyzes the situation:
+
+[source,bash]
+----
+python3 incident_agent.py triage "Apache web server is down on node1"
+----
+
+Review the output. The triage agent should:
+
+* List all available job templates in AAP
+* Confirm that node1 exists in the inventory
+* Check recent job history for related activity
+* Produce a concise action plan with specific template IDs
+
+[NOTE]
+====
+The agent runs silently by default, showing only the final result. Add `--verbose` to see the full agent reasoning and MCP tool calls:
+
+[source,bash]
+----
+python3 incident_agent.py triage --verbose "Apache web server is down on node1"
+----
+====
+
+=== Step 3: Run the full pipeline
+
+Now run all three agents in sequence -- triage, execute, and report:
+
+[source,bash]
+----
+python3 incident_agent.py all --break-first "Apache web server is down on node1"
+----
+
+The `--break-first` flag first runs the "Break Apache" template to simulate an incident, then lets the agents respond.
+
+Watch the output as each agent completes its work:
+
+* *TRIAGE* -- the action plan appears first
+* *EXECUTION* -- jobs are launched and monitored
+* *RESULT* -- a final incident summary is produced
+
+=== Step 4: Verify in AAP
+
+1. Switch to the *AAP* tab
+2. Navigate to *Automation Execution* -> *Jobs*
+3. You should see jobs launched by the CrewAI agents:
+   * Apache Service Status Check
+   * Restore Apache
+   * Apache Service Status Check (verification)
+4. All jobs should show as *Successful*
+
+=== Step 5: Try a different problem
+
+Run the triage agent with a problem that has no matching automation:
+
+[source,bash]
+----
+python3 incident_agent.py triage "PostgreSQL database is not responding on node1"
+----
+
+The agent should honestly report that no relevant templates were found -- it does not run unrelated automation.
+
+=== What you learned
+
+* CrewAI agents operate *autonomously* -- no human approval needed
+* Each agent has a specialized role: triage, execute, report
+* Agents use the *same MCP server* as Claude Code -- same tools, different consumer
+* The agents are honest about their capabilities -- they do not run irrelevant automation
+* This is the *autonomous* model: AI decides and acts, human reviews after
+
+'''
+
+== Challenge 3: Event-driven AI automation
+
+In this final challenge, you combine everything: Event-Driven Ansible detects an incident, triggers an AAP workflow that runs traditional Ansible diagnostics *and* launches the CrewAI agent for AI-driven remediation. This is the most sophisticated pattern -- fully automated from detection to resolution.
+
+=== Architecture
+
+The flow works as follows:
+
+1. An event occurs (Apache goes down)
+2. *EDA* detects the event and triggers an AAP workflow
+3. The AAP workflow has two nodes:
+   * *Node 1*: A traditional Ansible playbook runs a diagnostic check
+   * *Node 2*: A job template executes the CrewAI agent for AI-driven remediation
+4. The CrewAI agent triages the issue, launches remediation, and produces a report
+
+=== Step 1: Review the AAP workflow
+
+1. Open the *AAP* tab
+2. Navigate to *Automation Execution* -> *Templates*
+3. Find the *AI Incident Response Workflow* workflow template
+4. Click to open it and review the workflow visualizer
+
+You should see two nodes connected in sequence:
+
+* *Apache Service Status Check* -- traditional Ansible diagnostic
+* *AI Agent: Incident Response* -- CrewAI agent remediation
+
+This combines deterministic automation (Ansible) with AI-driven automation (CrewAI) in a single workflow.
+
+=== Step 2: Simulate an incident
+
+1. Navigate to *Automation Execution* -> *Templates*
+2. Find and launch the *Break Apache* job template
+3. Wait for it to complete successfully
+
+This breaks the Apache configuration on node1, simulating a real incident.
+
+=== Step 3: Trigger the workflow manually
+
+For this exercise, trigger the workflow manually to observe the flow:
+
+1. Navigate to *Automation Execution* -> *Templates*
+2. Find and launch the *AI Incident Response Workflow*
+3. Watch the workflow visualizer as each node executes
+
+The first node (diagnostic check) will likely show that Apache is down. The second node (CrewAI agent) will triage, remediate, and verify the fix.
+
+=== Step 4: Review the results
+
+1. Click on each node in the workflow to review its output
+2. The diagnostic node shows the raw service status
+3. The AI agent node shows the full triage -> execution -> report output
+4. Verify that Apache is restored by checking the *Jobs* page for successful remediation
+
+=== Step 5: Discuss -- what worked, what did not
+
+Take a moment to reflect on this experience:
+
+*What worked well:*
+
+* End-to-end automation from detection to resolution
+* Traditional Ansible and AI agents working together
+* The AI agent adapted to the situation dynamically
+
+*What felt like duct tape:*
+
+* The CrewAI agent runs as a wrapped Python script inside a job template
+* Context does not flow naturally between the Ansible node and the AI agent node
+* There is no approval gate between the agent's triage and its execution
+* Two separate audit trails -- AAP job logs and agent stdout
+* No way for the AI agent to feed findings back into AAP for conditional workflow paths
+
+'''
+
+== The future: AAP Orchestrator
+
+The friction you experienced in Challenge 3 is exactly what the *AAP Orchestrator* is designed to eliminate.
+
+=== What is the Orchestrator?
+
+The AAP Orchestrator is a new capability coming to Ansible Automation Platform that transforms AAP from a platform focused on deterministic Ansible automation into the enterprise platform for *AI-driven orchestration*.
+
+=== What changes
+
+[cols="1,1,1", options="header"]
+|===
+| Capability | Today (what you built) | Future (Orchestrator)
+
+| AI agents in workflows
+| Wrapped in job templates as Python scripts
+| First-class workflow nodes alongside playbooks
+
+| Context flow
+| Manual -- agent reads AAP state via MCP
+| Native -- data flows between Ansible and AI nodes
+
+| Approval gates
+| Not available between agent steps
+| Human-in-the-loop approval between any nodes
+
+| Audit trail
+| Split between AAP logs and agent stdout
+| Unified across all automation types
+
+| Workflow design
+| YAML and code
+| Visual drag-and-drop designer
+
+| Model integration
+| External -- you configure the AI model connection
+| Built-in -- bring your own model through standardized APIs
+|===
+
+=== The vision
+
+The Orchestrator enables a new class of automation workflows:
+
+* *AI decision nodes* that can analyze data and choose the next workflow path
+* *Human-in-the-loop gates* where an operator reviews the AI's recommendation before execution
+* *Mixed workflows* that combine Ansible playbooks, AI agents, external tools, and approval steps in a single visual workflow
+* *Unified governance* with RBAC, audit trails, and compliance across all automation types
+
+What you built today -- an external AI agent that interacts with AAP via MCP -- is the foundation. The Orchestrator makes it native, governed, and enterprise-ready.
+
+=== Key takeaway
+
+Today you experienced three levels of AI-driven automation:
+
+1. *Human drives AI* (Claude Code) -- you are in control, AI assists
+2. *AI drives AAP* (CrewAI agents) -- AI decides and acts autonomously
+3. *AAP orchestrates AI* (EDA + workflow) -- the platform coordinates both
+
+The AAP Orchestrator unifies all three into a single experience where AI agents, Ansible playbooks, and human decisions work together as first-class citizens in one workflow engine.
+
+'''
+
+== Summary
+
+Congratulations! You have completed the AI-Driven Incident Response module.
+
+=== What you accomplished
+
+* Used Claude Code with MCP to interactively query and control AAP through natural language
+* Ran autonomous CrewAI agents that triaged, remediated, and reported on an Apache incident
+* Combined Event-Driven Ansible with AI agents in an AAP workflow
+* Experienced the current limitations that the AAP Orchestrator will address
+
+=== Three models of AI automation
+
+[cols="1,1,1,1", options="header"]
+|===
+| Model | Control | Speed | Trust
+
+| Human-in-the-loop (Claude Code)
+| You decide everything
+| Slower -- human in every step
+| Highest -- full visibility
+
+| Autonomous agents (CrewAI)
+| AI decides and acts
+| Fastest -- no human delays
+| Requires guardrails and review
+
+| Orchestrated (AAP workflow)
+| Platform coordinates
+| Balanced -- automation with gates
+| Enterprise-grade governance
+|===
+
+The right approach depends on your organization's requirements for speed, control, and compliance. Most enterprises will use a combination of all three.
+
+== Complete
+
+Click the link below to proceed to the *Summary and Call to Actions*.

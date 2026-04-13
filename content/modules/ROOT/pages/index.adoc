@@ -161,8 +161,30 @@ You now have everything you need to start the core AIOps lab! In the following m
 
 [NOTE]
 ====
-**This lab has two independent parts!** You can complete Part 1, Part 2, or both—in any order. If you've already completed Part 1 and want to explore a more advanced scenario, feel free to skip ahead to Part 2.
+**This lab has multiple independent parts!** You can complete them in any order. If you've already completed Part 1 and want to explore a more advanced scenario, skip ahead to Part 2 or Part 4.
 ====
+
+== Part 4: AI-Driven Incident Response with MCP
+
+[IMPORTANT]
+====
+**The next evolution of AIOps.** Part 4 takes you beyond static playbooks and pre-built workflows into *agentic automation* -- where intelligent agents reason, decide, and act through Ansible Automation Platform as their trusted execution layer.
+====
+
+Part 4 explores three progressively autonomous approaches to AI-driven automation:
+
+* *Human-in-the-loop*: Use Claude Code with MCP to interactively query and control AAP through natural language
+* *Autonomous agents*: Run CrewAI agents that independently triage, remediate, and report on incidents
+* *Event-driven AI*: Combine Event-Driven Ansible with AI agents in AAP workflows for end-to-end automated response
+
+You will design and deploy agentic workflows that interpret alerts, gather context, and trigger self-healing automation -- all while maintaining human oversight and auditability.
+
+=== What you will learn
+
+* How the Model Context Protocol (MCP) exposes AAP capabilities to AI models
+* The difference between human-in-the-loop and autonomous AI automation patterns
+* How to combine Event-Driven Ansible with AI agents for closed-loop remediation
+* How the upcoming AAP Orchestrator will unify agents and playbooks natively
 
 == Part 2: AIOps with Network Automation
 
@@ -227,16 +249,20 @@ image::aap_logo.png[aap_logo,120, link="_images/aap_logo.png", window=blank]
 a|
 **Part 1: AIOps with Apache Remediation** (Modules 1-2)
 
-A **basic introduction** to AIOps—learn the fundamentals by building a self-healing workflow for Apache service failures using Red Hat AI and Ansible Lightspeed.
+A **basic introduction** to AIOps -- learn the fundamentals by building a self-healing workflow for Apache service failures using Red Hat AI and Ansible Lightspeed.
 
 **Part 2: AIOps with Network Automation** (Modules 3-5) _Highly Recommended_
 
 Apply the same AIOps patterns to **network infrastructure**. Troubleshoot OSPF routing issues on Cisco routers using Splunk, Event-Driven Ansible, and Lightspeed-generated playbooks.
+
+**Part 4: AI-Driven Incident Response with MCP** (Module 7)
+
+The next evolution -- move beyond static playbooks to **agentic automation** where AI agents reason, decide, and act through AAP as the trusted execution layer.
 |===
 
 [TIP]
 ====
-**Choose your path:** Both parts are independent and can be completed in any order. New to AIOps? Start with Part 1. Already familiar with the basics or completed Part 1 previously? Jump straight to Part 2 for a deeper dive into network automation.
+**Choose your path:** All parts are independent and can be completed in any order. New to AIOps? Start with Part 1. Want to explore agentic AI automation? Jump to Part 4.
 ====
 
 Click the link below to proceed to **Module 1: Log Enrichment and Prompt Generation Workflow**.

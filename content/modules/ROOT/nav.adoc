@@ -7,4 +7,6 @@
 ** xref:module-04.adoc[5. Network Workflow]
 * Part 3: AIOps with Windows Automation
 ** xref:module-06.adoc[6. Windows Events and AI-Driven Ticketing]
-* xref:module-05.adoc[7. Summary and Call to Actions]
+* Part 4: AI-Driven Incident Response with MCP
+** xref:module-07.adoc[7. AI Agents and AAP via MCP]
+* xref:module-05.adoc[8. Summary and Call to Actions]
