@@ -286,6 +286,8 @@ Expected output:
 
 === Step 4.2.3: Run the triage agent
 
+In this step, you are *not* breaking anything yet. Apache is still running normally on node1. You are passing a simulated alert message to the triage agent to see how it reasons about a reported problem. The agent will discover available automation, build an action plan, and then confirm that Apache is actually running fine -- demonstrating that it checks reality before taking action.
+
 Run only the triage agent first to see how it analyzes the situation:
 
 [source,bash]
