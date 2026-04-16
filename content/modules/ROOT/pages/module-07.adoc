@@ -216,6 +216,19 @@ Now experiment on your own. Here are some ideas:
 
 == 4 - Challenge 2: Autonomous agents with CrewAI
 
+=== What is an AI agent?
+
+In Challenge 1, you typed prompts and decided what to do next. An AI *agent* removes you from that loop. An agent is a program that receives a goal, then autonomously figures out how to achieve it. What distinguishes an agent from a simple LLM call or a script:
+
+* *Tool use* -- it can call external tools (APIs, MCP servers, databases) to take actions in the real world, not just generate text
+* *Reasoning and planning* -- it breaks a goal into steps and decides what to do next based on what it observes
+* *Autonomy* -- it runs without human input for each step, making its own decisions along the way
+* *Introspection* -- it can evaluate its own results, recognize when something did not work, and adjust its approach
+
+In this lab, each agent is a small Python program that connects to an LLM, receives a goal (for example, "Apache is down on node1"), and autonomously decides which MCP tools to call, in what order, and what to do with the results.
+
+=== Why CrewAI?
+
 CrewAI is one of many open-source agent frameworks available today (LangGraph, AutoGen, Semantic Kernel, and others). We chose it because it is simple to understand and demonstrates multi-agent collaboration clearly. The key concept is not the framework -- it is the *integration pattern*: AI agents connected to Ansible Automation Platform through MCP, with Ansible providing the governed execution layer for all infrastructure operations.
 
 In this challenge, you move from human-in-the-loop to *autonomous agents*. You will run an incident response crew -- a team of specialized AI agents that collaborate to handle an incident without human intervention.
