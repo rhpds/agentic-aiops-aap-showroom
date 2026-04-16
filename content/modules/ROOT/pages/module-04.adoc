@@ -14,18 +14,18 @@ After completing this module, you will be able to:
 * Review and approve AI-generated network automation code through human-in-the-loop validation
 * Verify OSPF neighbor adjacency restoration using Splunk dashboards
 
-== Scenarios
+== Challenges
 The essence of the following scenarios is to empower a network expert to translate their manual OSPF troubleshooting rationale into intelligent, automated playbooks. Using a development pipeline, the expert creates and refines prompts for Ansible Lightspeed to generate the necessary automation code. To ensure safety and accuracy, a workflow allows the expert to first run each AI-generated playbook in check mode. This provides an opportunity to review and approve the proposed changes before they are applied to production. If a playbook doesn't work as intended, the expert can simply continue to refine their prompt in this iterative cycle until the desired outcome is achieved.
 
-* Scenario-1: OSPF neighbor down due to interface shut 
-* Scenario-2: OSPF neighbor down due to incorrect OSPF network type
-* Scenario-3: OSPF neighbor down due to hello timer mismatch
+* Challenge 1: OSPF neighbor down due to interface shut
+* Challenge 2: OSPF neighbor down due to incorrect OSPF network type
+* Challenge 3: OSPF neighbor down due to hello timer mismatch
 
-== Scenario-1: OSPF neighbor down due to interface shut
+== Challenge 1: OSPF neighbor down due to interface shut
 
 In this first scenario we will cause an OSPF neighbor down by intentionally shutting down the OSPF interface (Tunnel0 on cisco-rtr1).
 
-=== Step 1: Review the playbook (network_aiops.yml)
+=== Step 2.1.1: Review the playbook (network_aiops.yml)
 
 The playbook can be reviewed in its entirety here: https://github.com/ansible-tmm/aiops-summitlab/blob/main/playbooks/network_aiops.yml[network_aiops.yml on GitHub^]
 
@@ -221,7 +221,7 @@ Step 10: Return to Splunk to verify the OSPF neighbor is now up with a full adja
 
 image::routing_dashboard2.png[Routing Dash, 160%, link="_images/routing_dashboard2.png", window=blank]
 
-== Scenario-2: OSPF neighbor down due to incorrect OSPF network type
+== Challenge 2: OSPF neighbor down due to incorrect OSPF network type
 For scenario two, we'll break OSPF by misconfiguring the network type on cisco-rtr1's Tunnel0 interface. This creates a subtle failure where the OSPF neighbor goes down while the interface itself stays up. Therefore, our AI prompt must be more detailed to account for this protocol-level issue, not just a simple interface status change.
 
 Step 1: Review the playbook (aiops.yml) 
@@ -249,7 +249,7 @@ Note: The following snippets explain how this playbook uses the uri module and p
      create a task that shows the status of Tunnel0 and register the output 
      run a new task that administratively enables interface for parent interface tunnel0 when stdout contains 'administratively down' 
 ----
-     Additions for Scenario-2--->
+     Additions for Challenge 2--->
 [source,yaml]
 ----
     run a new task when the previous output contains 'line protocol is up' in stdout[0] in this task do a 'show ip ospf interface tunnel0' and register as new_output 
@@ -397,7 +397,7 @@ Output:
   Process ID 1, Router ID 192.168.1.1, Network Type POINT_TO_POINT, Cost: 1000
 ----
 
-== Scenario-3: OSPF neighbor down due to hello timer mismatch
+== Challenge 3: OSPF neighbor down due to hello timer mismatch
 For scenario three, we'll break OSPF by misconfiguring the hello timer on cisco-rtr1's Tunnel0 interface. This creates a subtle failure where the OSPF neighbor goes down while the interface itself stays up. Therefore, our AI prompt must be more detailed to account for this protocol-level issue, not just a simple interface status change.
 
 Step 1: Review the playbook (aiops.yml) 
@@ -426,7 +426,7 @@ Note: The following snippets explain how this playbook uses the uri module and p
      run a new task when the previous output contains 'line protocol is up' in stdout[0] in this task do a 'show ip ospf interface tunnel0' and register as new_output 
      run a new task with a list of two conditionals. The first condition is output contains 'line protocol is up' in stdout[0] and second condition is when new_output doesn't contain 'Network Type POINT_TO_POINT' This task would then ⚙️ configure interface tunnel0 with the command 'ip ospf network type point_to_point'
 ----
-Additions for Scenario-3--->
+Additions for Challenge 3--->
 [source,yaml]
 ----
 run a new task with a list of three conditionals. The first condition is output contains 'line protocol is up' in stdout[0] and second condition is when new_output does contain 'Network Type POINT_TO_POINT' the third condition is when new_output doesn't contain 'Hello 10' This task would then ⚙️ configure interface tunnel0 with the command 'ip ospf hello-interval 10'"

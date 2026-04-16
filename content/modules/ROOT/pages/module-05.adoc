@@ -350,11 +350,11 @@ Applies the validated remediation to fix the OSPF neighbor adjacency issue.
 - Executes the same `lightspeed-response.yml` playbook without check mode
 - Makes actual configuration changes to cisco-rtr1
 - Restores OSPF neighbor adjacency based on the failure scenario:
-  * **Scenario 1**: Brings up the shutdown Tunnel0 interface
-  * **Scenario 2**: Corrects the OSPF network type to point-to-point
-  * **Scenario 3**: Fixes the OSPF hello timer interval
+  * **Challenge 1**: Brings up the shutdown Tunnel0 interface
+  * **Challenge 2**: Corrects the OSPF network type to point-to-point
+  * **Challenge 3**: Fixes the OSPF hello timer interval
 
-*Example AI-Generated Playbook (Scenario 1 - Interface Shutdown):*
+*Example AI-Generated Playbook (Challenge 1 - Interface Shutdown):*
 
 [source,yaml]
 ----

@@ -75,7 +75,7 @@ After completing this section, you will be able to:
 
 In this challenge, you will use Claude Code -- an AI coding assistant -- to interact with Ansible Automation Platform through natural language. Claude Code connects to the MCP server and discovers available tools automatically. You stay in control: you ask questions, review results, and decide what actions to take.
 
-=== Step 1: Open VS Code
+=== Step 4.1.1: Open VS Code
 
 1. Click the *@Codeserver* tab in your lab interface
 2. Log in with your lab credentials if prompted:
@@ -84,7 +84,7 @@ In this challenge, you will use Claude Code -- an AI coding assistant -- to inte
 
 // TODO: Add screenshot of VS Code login
 
-=== Step 2: Open Claude Code
+=== Step 4.1.2: Open Claude Code
 
 1. Open a terminal in VS Code: click *Terminal* in the top menu bar, then click *New Terminal*
 2. Claude Code is pre-installed. Start it by typing the following command and pressing *Enter*:
@@ -106,7 +106,7 @@ When Claude Code starts for the first time, it will display a safety prompt aski
 Claude Code is already configured to connect to the Ansible Automation Platform MCP server. No additional setup is required. When you ask Claude about Ansible Automation Platform, it will automatically discover and use the MCP tools.
 ====
 
-=== Step 3: Discover available automation
+=== Step 4.1.3: Discover available automation
 
 Claude Code is connected to the MCP server. Type the following prompt and press *Enter*:
 
@@ -140,7 +140,7 @@ If you want to speed up your workflow, select option *2* to allow Claude to use 
 
 // TODO: Add screenshot of Claude Code showing job template list
 
-=== Step 4: Check infrastructure status
+=== Step 4.1.4: Check infrastructure status
 
 Type the following prompt:
 
@@ -157,7 +157,7 @@ image::claude_host_inventory.png[Claude Host Inventory Results,100%, link="_imag
 * It cross-references the data to show which hosts belong to which inventories
 * You should see `node1` in the `lab-inventory` and `bastion` in the `lab-inventory`
 
-=== Step 5: Investigate recent activity
+=== Step 4.1.5: Investigate recent activity
 
 Type the following prompt:
 
@@ -172,7 +172,7 @@ Show me the most recent jobs that have run. Were there any failures?
 * It highlights any failures and shows job status (successful, failed, running)
 * You should see the jobs that were launched during the lab provisioning process
 
-=== Step 6: Take action -- diagnose a problem
+=== Step 4.1.6: Take action -- diagnose a problem
 
 Now ask Claude to take an action. Type the following prompt:
 
@@ -197,7 +197,7 @@ Notice what is happening here: Claude *does not SSH into node1* to check Apache.
 Also notice *who* is executing: Claude uses your lab user's gateway token, which means it operates under *your* RBAC permissions. You can verify this in the Ansible Automation Platform UI: navigate to *Access Management* -> *OAuth2 Tokens* and you will see the token that the MCP server uses. If your user lacked access to the Apache templates, Claude would be denied -- just like a human operator would be. There are no hidden service accounts or elevated AI privileges.
 ====
 
-=== Step 7: Try your own prompts
+=== Step 4.1.7: Try your own prompts
 
 Now experiment on your own. Here are some ideas:
 
@@ -228,7 +228,7 @@ The incident agent has three specialists:
 
 Each agent connects to Ansible Automation Platform through the *same MCP server* as Claude Code. The agents discover available automation, select the right job templates, and ask Ansible Automation Platform to execute them. The AI agents *never* SSH into servers or run ad-hoc commands -- every infrastructure operation goes through Ansible.
 
-=== Step 1: Disable EDA activations
+=== Step 4.2.1: Disable EDA activations
 
 Before running agents from the CLI, disable all EDA rulebook activations so they do not trigger duplicate responses to the jobs the agent launches.
 
@@ -246,7 +246,7 @@ image::disable_rulebook_activation.png[Disable Rulebook Activation,80%, link="_i
 
 image::eda_both_disabled.png[Both EDA Activations Disabled,100%, link="_images/eda_both_disabled.png", window=blank]
 
-=== Step 2: Open the terminal
+=== Step 4.2.2: Open the terminal
 
 1. Click the *>_Terminal-01* tab in your lab interface, or use the VS Code terminal from Challenge 1
 2. Navigate to the agent directory and activate the Python virtual environment:
@@ -271,7 +271,7 @@ Expected output:
 /home/lab-user/agentic-aiops
 ----
 
-=== Step 3: Run the triage agent
+=== Step 4.2.3: Run the triage agent
 
 Run only the triage agent first to see how it analyzes the situation:
 
@@ -303,7 +303,7 @@ python3 incident_agent.py triage --verbose "Apache web server is down on node1"
 This is useful for understanding *how* the agent makes decisions.
 ====
 
-=== Step 4: Run the executor agent
+=== Step 4.2.4: Run the executor agent
 
 Now run the executor agent to see how it acts on a triage plan:
 
@@ -330,7 +330,7 @@ Notice that the executor agent makes *autonomous decisions* about which template
 But critically, *increasing autonomy does not reduce governance*. The agent still operates under the same user-scoped identity, the same RBAC permissions, and the same audit trail as Challenge 1. It cannot bypass access controls, skip audit logging, or run unvetted commands. The autonomy is in *decision-making*, not in *execution* -- and the governance controls scale with the level of autonomy.
 ====
 
-=== Step 5: Run the reporter agent
+=== Step 4.2.5: Run the reporter agent
 
 Run the reporter agent to generate an incident summary:
 
@@ -351,7 +351,7 @@ Wait for the agent to complete (approximately 90-120 seconds, as it runs all thr
 
 // TODO: Add screenshot of reporter agent output
 
-=== Step 6: Run the full pipeline with a simulated incident
+=== Step 4.2.6: Run the full pipeline with a simulated incident
 
 Now run all three agents in sequence -- triage, execute, and report -- with a simulated incident:
 
@@ -370,7 +370,7 @@ Watch the output as each agent completes its work:
 
 This is the full autonomous incident response pipeline: detect, triage, remediate, verify, report.
 
-=== Step 7: Verify in Ansible Automation Platform
+=== Step 4.2.7: Verify in Ansible Automation Platform
 
 1. Switch to the *Ansible Automation Platform* tab
 2. Navigate to *Automation Execution* -> *Jobs*
@@ -390,7 +390,7 @@ This is the full autonomous incident response pipeline: detect, triage, remediat
 Every job launched by the AI agent appears in the Ansible Automation Platform job history with full audit details: who launched it, when, which credentials were used, and the complete output. This is the governance value -- even when AI makes the decisions, Ansible provides the audit trail.
 ====
 
-=== Step 8: Test the agent's judgment
+=== Step 4.2.8: Test the agent's judgment
 
 Run the triage agent with a problem that has no matching automation:
 
@@ -438,7 +438,7 @@ This works -- and it works well. Along the way, you will also see where the curr
 
 Notice that this uses the same EDA pipeline you saw in earlier modules. The only difference is what gets triggered -- instead of a deterministic playbook, EDA launches an AI agent. Your existing event-driven infrastructure works unchanged. You are just swapping what happens when an event arrives.
 
-=== Step 1: Enable the AI Agent EDA activation
+=== Step 4.3.1: Enable the AI Agent EDA activation
 
 In Challenge 2, you disabled all EDA activations to prevent interference while running agents from the CLI. Now you will enable the *AI Agent* activation so that Event-Driven Ansible triggers the AI agent automatically when failures are detected.
 
@@ -458,7 +458,7 @@ In Challenge 2, you disabled all EDA activations to prevent interference while r
 The *Web App* activation must remain disabled. Both activations listen for Apache events on the same Kafka topic -- running both simultaneously would cause duplicate responses to the same event.
 ====
 
-=== Step 2: Break Apache and watch the AI respond
+=== Step 4.3.2: Break Apache and watch the AI respond
 
 Simulate an Apache failure and let the event-driven pipeline handle it end-to-end:
 
@@ -476,7 +476,7 @@ This breaks the Apache configuration on node1. Here is what happens next, automa
 * EDA triggers the *AI Agent: Incident Response* job template
 * The AI agent runs autonomously on bastion: triage, execute, report
 
-=== Step 3: Watch the AI agent in action
+=== Step 4.3.3: Watch the AI agent in action
 
 1. Navigate to *Automation Execution* -> *Jobs*
 2. Watch for the *AI Agent: Incident Response* job to appear -- this was triggered automatically by EDA (it may take 30-60 seconds after the Break Apache job completes)
@@ -492,7 +492,7 @@ You should see three stages in the job output:
 
 // TODO: Add screenshot of AI Agent job output showing stages
 
-=== Step 4: Check Mattermost
+=== Step 4.3.4: Check Mattermost
 
 1. Open the *Mattermost* tab in your lab interface
 2. Navigate to the *Town Square* channel
@@ -510,7 +510,7 @@ You should see three stages in the job output:
 
 The report should show a *green* bar on the left if the issue was resolved, or a *red* bar if it was not.
 
-=== Step 5: Test the agent's judgment -- a problem it cannot fix
+=== Step 4.3.5: Test the agent's judgment -- a problem it cannot fix
 
 Now test what happens when the AI agent encounters a problem it has no automation for:
 
@@ -540,7 +540,7 @@ Now test what happens when the AI agent encounters a problem it has no automatio
 
 This is a critical test of the agent's judgment. In production, you do not want an AI agent guessing and running random playbooks when it encounters an unfamiliar problem. A responsible agent escalates to a human.
 
-=== Step 6: Restore the original configuration
+=== Step 4.3.6: Restore the original configuration
 
 After completing this challenge, re-enable the Web App activation:
 
