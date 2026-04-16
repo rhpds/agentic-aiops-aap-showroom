@@ -60,12 +60,13 @@ link:_images/lab_topology.png[image:lab_topology.png[lab_topology], window=blank
 
 === Workshop Duration
 
-This workshop consists of three independent parts:
+This workshop consists of four independent parts:
 
 - *Part 1: AIOps with Apache Remediation* - 30-40 minutes
 - *Part 2: Network Automation* - 30-40 minutes
 - *Part 3: Windows Automation* - 15-20 minutes
-- *Total Workshop Time* - ~90 minutes
+- *Part 4: AI-Driven Incident Response with MCP* - 30-40 minutes
+- *Total Workshop Time* - ~120 minutes
 
 For each workshop, there are 4 parts:
 
