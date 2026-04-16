@@ -381,7 +381,10 @@ Now run all three agents in sequence -- triage, execute, and report -- with a si
 python3 incident_agent.py all --break-first "Apache web server is down on node1"
 ----
 
+[NOTE]
+====
 The `--break-first` flag first runs the *Break Apache* template to simulate a real incident, then lets the agents respond autonomously.
+====
 
 Watch the output as each agent completes its work:
 
