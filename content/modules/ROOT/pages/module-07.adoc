@@ -69,7 +69,7 @@ After completing this section, you will be able to:
 
 '''
 
-== Challenge 1: Human-in-the-loop with Claude Code
+== 4 - Challenge 1: Human-in-the-loop with Claude Code
 
 In this challenge, you will use Claude Code -- an AI coding assistant -- to interact with Ansible Automation Platform through natural language. Claude Code connects to the MCP server and discovers available tools automatically. You stay in control: you ask questions, review results, and decide what actions to take.
 
@@ -214,7 +214,7 @@ Now experiment on your own. Here are some ideas:
 
 '''
 
-== Challenge 2: Autonomous agents with CrewAI
+== 4 - Challenge 2: Autonomous agents with CrewAI
 
 CrewAI is one of many open-source agent frameworks available today (LangGraph, AutoGen, Semantic Kernel, and others). We chose it because it is simple to understand and demonstrates multi-agent collaboration clearly. The key concept is not the framework -- it is the *integration pattern*: AI agents connected to Ansible Automation Platform through MCP, with Ansible providing the governed execution layer for all infrastructure operations.
 
@@ -418,7 +418,7 @@ This is a critical test. In production, you do not want an AI agent guessing and
 
 '''
 
-== Challenge 3: Operationalizing AI agents with Ansible Automation Platform
+== 4 - Challenge 3: Operationalizing AI agents with Ansible Automation Platform
 
 In Challenges 1 and 2, you ran AI agents interactively from the command line. That is great for development and testing, but how do you put AI agents into production? In this challenge, you will operationalize the AI agent using the tools Ansible Automation Platform already provides: Event-Driven Ansible for detection, job templates for execution, and Mattermost for notification.
 

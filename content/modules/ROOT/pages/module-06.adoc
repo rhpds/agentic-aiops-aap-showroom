@@ -29,7 +29,7 @@ The Windows event flow uses the same infrastructure as the Linux use case:
 * **Event-Driven Ansible** listens on the Kafka topic and matches events against rules
 * Matched events trigger **AAP Job Templates** that create tickets or query AI
 
-== Challenge 1: AD account creation event
+== 3 - Challenge 1: AD account creation event
 
 In this scenario, you simulate an Active Directory administrator creating a new user account. Windows generates **Event ID 4722** (a user account was enabled), which Winlogbeat captures and forwards to Kafka. The EDA rulebook matches on this event only for test user accounts created by the simulation template.
 
@@ -83,7 +83,7 @@ It may take up to 30 seconds for the event to appear in the History tab. Refresh
 All of this information is harvested directly from the Windows Event payload -- no manual input required. This demonstrates how event-driven automation can create rich, contextual tickets automatically.
 ====
 
-== Challenge 2: Firewall event with AI enrichment
+== 3 - Challenge 2: Firewall event with AI enrichment
 
 In this scenario, you simulate a suspicious firewall rule being added to the Windows Server. EDA picks up the event, queries the **Granite LLM** to analyze it before creating the ticket. This demonstrates how AI can enrich the ticketing process with expert analysis.
 
