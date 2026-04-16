@@ -185,7 +185,7 @@ You will design and deploy agentic workflows that interpret alerts, gather conte
 * How the Model Context Protocol (MCP) exposes AAP capabilities to AI models
 * The difference between human-in-the-loop and autonomous AI automation patterns
 * How to combine Event-Driven Ansible with AI agents for closed-loop remediation
-* How the upcoming AAP Orchestrator will unify agents and playbooks natively
+* How the automation orchestrator, an exciting new feature coming to Ansible Automation Platform, will unify agents and playbooks natively
 
 == Part 2: AIOps with Network Automation
 

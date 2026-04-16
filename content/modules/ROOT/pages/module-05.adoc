@@ -31,7 +31,7 @@ Throughout this lab, you experienced the power of AI-driven automation across mu
 * Ran autonomous CrewAI agents that triaged, remediated, and reported on incidents
 * Combined Event-Driven Ansible with AI agents in an AAP workflow
 * Explored the evolution from static playbooks to agentic automation
-* Previewed how the AAP Orchestrator will unify agents and playbooks natively
+* Previewed how the automation orchestrator, an exciting new feature coming to Ansible Automation Platform, will unify agents and playbooks natively
 
 == Summary of Job Templates
 

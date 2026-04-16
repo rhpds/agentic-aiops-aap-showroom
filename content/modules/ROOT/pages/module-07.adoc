@@ -67,7 +67,7 @@ After completing this section, you will be able to:
 * Run autonomous AI agents that triage and remediate incidents using Ansible Automation Platform
 * Combine Event-Driven Ansible with AI agents for automated incident response
 * Articulate why AI agents should interact with infrastructure *through* Ansible Automation Platform, not directly
-* Understand how the upcoming Ansible Automation Platform Orchestrator will unify these approaches
+* Understand how the automation orchestrator, an exciting new feature coming to Ansible Automation Platform, will unify these approaches
 
 '''
 
@@ -96,7 +96,10 @@ claude
 +
 3. Wait for Claude Code to initialize. You should see the Claude Code interface with a prompt ready for input.
 
-// TODO: Add screenshot of Claude Code terminal interface
+image::claude_code_terminal.png[Claude Code Terminal,100%, link="_images/claude_code_terminal.png", window=blank]
+
++
+When Claude Code starts for the first time, it will display a safety prompt asking if you trust the current folder. Select *1. Yes, I trust this folder* and press *Enter* to continue.
 
 [NOTE]
 ====
@@ -111,6 +114,23 @@ Claude Code is connected to the MCP server. Type the following prompt and press 
 ----
 What job templates are available in AAP? List them with their IDs and descriptions.
 ----
+
+Before Claude executes any MCP tool, it will ask for your permission:
+
+[source,text]
+----
+Do you want to proceed?
+ ❯ 1. Yes
+   2. Yes, and don't ask again for aap-job-mgmt - job_templates_list commands in /home/lab-user
+   3. No
+----
+
+This is an important safety guardrail. Claude Code requires explicit human approval before calling external tools -- it will not take action on its own without your consent. Select *1. Yes* to approve the tool call and continue. You will see this prompt each time Claude wants to use a new MCP tool.
+
+[TIP]
+====
+If you want to speed up your workflow, select option *2* to allow Claude to use that specific tool without asking again for the remainder of the session. This is useful once you are comfortable with the tools Claude is calling.
+====
 
 *What to observe:*
 
@@ -400,7 +420,7 @@ In Challenges 1 and 2, you ran AI agents interactively from the command line. Th
 
 This is the highest level of autonomy in this module -- fully automated from detection to resolution. But the governance model does not change. The AI agent still operates under the same user-scoped identity, the same RBAC controls, and the same audit trail. Every action is logged, every job is traceable, and every credential is managed by Ansible Automation Platform. The automation becomes faster, not less governed.
 
-This works -- and it works well. Along the way, you will also see where the current approach requires creative engineering, and where the upcoming Ansible Automation Platform Orchestrator will make things simpler.
+This works -- and it works well. Along the way, you will also see where the current approach requires creative engineering, and where the upcoming automation orchestrator will make things simpler.
 
 === How it works
 
@@ -549,17 +569,17 @@ None of these are blockers -- you just built a working end-to-end system. But th
 
 '''
 
-== What comes next: Ansible Automation Platform Orchestrator
+== What comes next: automation orchestrator
 
 What you built today works. The question is: how do you scale this across an enterprise with hundreds of agents, thousands of events, and strict governance requirements?
 
-The *Ansible Automation Platform Orchestrator* is a new capability that enables AI agents to natively invoke governed automation through visual workflow design and unified audit trails. Ansible Automation Platform is not becoming an agent runtime or agent hosting platform -- it remains the *trusted execution layer* that agents call. The Orchestrator makes that integration seamless.
+The *automation orchestrator* is an exciting new capability coming to Ansible Automation Platform that enables AI agents to natively invoke governed automation through visual workflow design and unified audit trails. Ansible Automation Platform is not becoming an agent runtime or agent hosting platform -- it remains the *trusted execution layer* that agents call. The automation orchestrator makes that integration seamless.
 
-=== How the Orchestrator changes the game
+=== How the automation orchestrator changes the game
 
 [cols="1,1,1", options="header"]
 |===
-| Capability | Today (what you built) | With Orchestrator
+| Capability | Today (what you built) | With automation orchestrator
 
 | AI agents invoking automation
 | Wrapped in job templates as Python scripts
@@ -588,14 +608,14 @@ The *Ansible Automation Platform Orchestrator* is a new capability that enables 
 
 === The vision
 
-The Orchestrator enables a new class of automation workflows where AI agents invoke governed automation through Ansible Automation Platform:
+The automation orchestrator enables a new class of automation workflows where AI agents invoke governed automation through Ansible Automation Platform:
 
 * *AI decision nodes* that analyze data and choose the next workflow path -- with every decision audited
 * *Human-in-the-loop gates* where an operator reviews the AI's recommendation before execution -- with full context, not just stdout
 * *Mixed workflows* that combine Ansible playbooks, AI-driven decisions, external tools, and approval steps in a single visual workflow
 * *Unified governance* with user-scoped identity, RBAC, audit trails, and compliance across all automation types -- deterministic and non-deterministic alike
 
-What you built today -- AI agents interacting with Ansible Automation Platform via MCP, triggered by Event-Driven Ansible, operationalized through job templates -- is the foundation. Every pattern you used in this module carries forward. The Orchestrator makes that integration native, governed, and enterprise-ready.
+What you built today -- AI agents interacting with Ansible Automation Platform via MCP, triggered by Event-Driven Ansible, operationalized through job templates -- is the foundation. Every pattern you used in this module carries forward. The automation orchestrator makes that integration native, governed, and enterprise-ready.
 
 '''
 
@@ -637,7 +657,7 @@ Across all three challenges, two principles remained constant:
 
 This is the pattern for enterprise AI-driven operations: AI handles the non-deterministic work -- reasoning, triaging, deciding. Ansible handles the deterministic work -- executing tested playbooks, enforcing access controls, recording audit trails. Together, they deliver autonomous operations with enterprise-grade trust.
 
-The Ansible Automation Platform Orchestrator will make this integration native -- visual workflow design, unified audit trails, and seamless human-in-the-loop gates -- turning the creative engineering you saw today into governed, enterprise-ready simplicity.
+The automation orchestrator will make this integration native -- visual workflow design, unified audit trails, and seamless human-in-the-loop gates -- turning the creative engineering you saw today into governed, enterprise-ready simplicity.
 
 == Complete
 
