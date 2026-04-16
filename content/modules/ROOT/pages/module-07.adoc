@@ -449,7 +449,7 @@ This works -- and it works well. Along the way, you will also see where the curr
 
 // TODO: Add architecture diagram (slide-based)
 
-1. A service fails on node1 (Apache or crond)
+1. A service fails on node1 (Apache)
 2. *Filebeat* captures the log event and sends it to *Kafka*
 3. *Event-Driven Ansible* consumes the Kafka topic and triggers a job template
 4. The job template runs the *AI agent* on bastion
@@ -528,6 +528,7 @@ image::mattermost_agent_report.png[Mattermost AI Agent Report,100%, link="_image
 
 The report should show a *green* bar on the left if the issue was resolved, or a *red* bar if it was not.
 
+////
 === Step 4.3.5: Test the agent's judgment -- a problem it cannot fix
 
 Now test what happens when the AI agent encounters a problem it has no automation for:
@@ -557,8 +558,9 @@ Now test what happens when the AI agent encounters a problem it has no automatio
 // TODO: Add screenshot of Mattermost showing unresolved crond report
 
 This is a critical test of the agent's judgment. In production, you do not want an AI agent guessing and running random playbooks when it encounters an unfamiliar problem. A responsible agent escalates to a human.
+////
 
-=== Step 4.3.6: Restore the original configuration
+=== Step 4.3.5: Restore the original configuration
 
 After completing this challenge, re-enable the Web App activation:
 
