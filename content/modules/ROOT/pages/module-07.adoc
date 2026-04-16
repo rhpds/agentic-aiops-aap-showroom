@@ -206,11 +206,9 @@ Now experiment on your own. Here are some ideas:
 
 === What you learned
 
-* Claude Code *discovers* Ansible Automation Platform capabilities through MCP -- no hardcoded API calls
-* You stay in control -- the AI suggests actions, you approve them
-* MCP provides a *standardized, model-agnostic* way for AI to interact with Ansible Automation Platform
-* All infrastructure operations go *through Ansible Automation Platform* -- the AI never accesses hosts directly
-* This is the *human-in-the-loop* model: AI assists, human decides
+* *MCP lets any AI model discover and use Ansible Automation Platform* -- no custom API code, no hardcoded integrations, model-agnostic by design
+* *All infrastructure operations go through Ansible* -- the AI never accesses hosts directly, every action is governed by RBAC and recorded in the audit trail
+* *You stay in control* -- the AI suggests, you decide and approve, making this the human-in-the-loop model for AI-driven operations
 
 '''
 
@@ -433,12 +431,9 @@ This is a critical test. In production, you do not want an AI agent guessing and
 
 === What you learned
 
-* AI agents handle the *non-deterministic* work autonomously -- reasoning, triaging, and deciding what to do
-* Ansible Automation Platform handles the *deterministic* work -- executing tested playbooks, enforcing access controls, recording audit trails
-* *Every infrastructure operation goes through Ansible* -- the agent never touches hosts directly
-* The agents exercise *responsible judgment* -- they do not run irrelevant automation
-* Ansible Automation Platform provides the *governance layer*: user-scoped identity, RBAC, audit trails, and credential management
-* This is the *autonomous* model: AI reasons and decides, Ansible Automation Platform executes deterministically, human reviews after
+* *AI reasons, Ansible executes* -- agents handle the non-deterministic work (triaging, deciding) while Ansible Automation Platform handles the deterministic work (executing tested playbooks, enforcing access controls, recording audit trails)
+* *Agents exercise responsible judgment* -- they do not run irrelevant automation, and when they cannot help, they say so
+* *Governance scales with autonomy* -- user-scoped identity, RBAC, and full audit trails apply whether a human drives the AI or the AI drives itself
 
 '''
 
@@ -574,11 +569,9 @@ After completing this challenge, re-enable the Web App activation:
 
 === What you learned
 
-* Your existing EDA infrastructure works unchanged -- you swap the action from a playbook to an AI agent
-* The agent handles the full incident lifecycle autonomously: triage, remediate, report, notify
-* The agent exercises judgment -- when it has no relevant templates, it says so and escalates
-* Ansible Automation Platform can operationalize AI agents today using job templates, EDA, and notifications
-* Even in fully autonomous mode, *every infrastructure operation goes through Ansible* -- RBAC, audit, and governance are always enforced
+* *Your existing EDA infrastructure works unchanged* -- you swap the action from a deterministic playbook to an AI agent without modifying the event pipeline
+* *End-to-end automation from detection to resolution* -- the agent handles triage, remediation, verification, and notification autonomously through Ansible Automation Platform
+* *Full governance in fully autonomous mode* -- every infrastructure operation still goes through Ansible with RBAC, user-scoped identity, and complete audit trails
 
 === What required creative engineering
 
@@ -687,5 +680,13 @@ This is the pattern for enterprise AI-driven operations: AI handles the non-dete
 The automation orchestrator will make this integration native -- visual workflow design, unified audit trails, and seamless human-in-the-loop gates -- turning the creative engineering you saw today into governed, enterprise-ready simplicity.
 
 == Complete
+
+Three takeaways from this module:
+
+. *Ansible Automation Platform is the trusted execution layer for AI agents interacting with IT infrastructure.* Agents reason and decide, but every action -- restarting services, applying configurations, querying inventory -- goes through Ansible with deterministic, auditable, and repeatable execution. No shadow access, no ad-hoc commands, no ungoverned AI.
+
+. *AI-driven automation reduces mean time to repair without sacrificing compliance.* From the moment an event fires to the moment a remediation completes, the entire pipeline is automated, audited, and governed under user-scoped identity and RBAC. Organizations get faster incident response while maintaining the compliance posture their security and audit teams require.
+
+. *You can adopt agentic automation incrementally with the tools you already have.* You do not need to wait for a new platform or rip out existing workflows. Event-Driven Ansible, job templates, and MCP work together today. Start with human-in-the-loop AI assistance, progress to autonomous agents when your organization is ready, and look ahead to the automation orchestrator for native integration -- all on the same Ansible Automation Platform foundation.
 
 Click the link below to proceed to the *Summary and Call to Actions*.
