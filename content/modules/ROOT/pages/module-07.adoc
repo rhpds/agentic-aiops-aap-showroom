@@ -149,13 +149,13 @@ Type the following prompt:
 What hosts are registered in AAP? Which inventories do they belong to?
 ----
 
+image::claude_host_inventory.png[Claude Host Inventory Results,100%, link="_images/claude_host_inventory.png", window=blank]
+
 *What to observe:*
 
 * Claude queries *both* the `hosts_list` and `inventories_list` MCP tools
 * It cross-references the data to show which hosts belong to which inventories
 * You should see `node1` in the `lab-inventory` and `bastion` in the `lab-inventory`
-
-// TODO: Add screenshot showing host/inventory results
 
 === Step 5: Investigate recent activity
 
