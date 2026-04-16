@@ -235,12 +235,16 @@ Before running agents from the CLI, disable all EDA rulebook activations so they
 1. Open the *Ansible Automation Platform* tab
 2. Navigate to *Automation Decisions* -> *Rulebook Activations*
 3. *Disable* the *Web App* activation:
-   ** Click on *Web App* to open it
-   ** Toggle the activation to *Disabled*
-   ** Click *Save* if prompted
+   ** Select the checkbox next to *Web App*
+   ** Click the *Disable rulebook activations* button
+   ** Check the confirmation checkbox and click *Disable rulebook activations*
+   ** Click *Close* when complete
++
+image::disable_rulebook_activation.png[Disable Rulebook Activation,80%, link="_images/disable_rulebook_activation.png", window=blank]
++
 4. Verify that *both* the Web App and AI Agent activations show *Disabled*
 
-// TODO: Add screenshot of both activations disabled
+image::eda_both_disabled.png[Both EDA Activations Disabled,100%, link="_images/eda_both_disabled.png", window=blank]
 
 === Step 2: Open the terminal
 
