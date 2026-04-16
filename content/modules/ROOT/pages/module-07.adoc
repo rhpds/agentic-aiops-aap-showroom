@@ -286,6 +286,8 @@ Expected output:
 
 === Step 4.2.3: Run the triage agent
 
+The triage agent is the first responder. Its job is to discover what automation is available, confirm the target host exists, and create an action plan for resolving the issue. It does not take any action itself -- it only investigates and recommends.
+
 In this step, you are *not* breaking anything yet. Apache is still running normally on node1. You are passing a simulated alert message to the triage agent to see how it reasons about a reported problem. The agent will discover available automation, build an action plan, and then confirm that Apache is actually running fine -- demonstrating that it checks reality before taking action.
 
 Run only the triage agent first to see how it analyzes the situation:
@@ -320,6 +322,8 @@ This is useful for understanding *how* the agent makes decisions.
 
 === Step 4.2.4: Run the executor agent
 
+The executor agent is the one that takes action. It runs the triage step internally first to understand the situation, then launches the recommended job templates through Ansible Automation Platform, monitors each job until completion, and collects the results.
+
 Now run the executor agent to see how it acts on a triage plan:
 
 [source,bash]
@@ -346,6 +350,8 @@ But critically, *increasing autonomy does not reduce governance*. The agent stil
 ====
 
 === Step 4.2.5: Run the reporter agent
+
+The reporter agent runs the entire pipeline -- triage and execution -- then summarizes everything into a concise incident report. Its job is to produce a clear record of what happened, what was done, and whether the issue was resolved.
 
 Run the reporter agent to generate an incident summary:
 
