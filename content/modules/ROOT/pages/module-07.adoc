@@ -322,7 +322,7 @@ This is useful for understanding *how* the agent makes decisions.
 
 === Step 4.2.4: Run the executor agent
 
-The executor agent is the one that takes action. It runs the triage step internally first to understand the situation, then launches the recommended job templates through Ansible Automation Platform, monitors each job until completion, and collects the results.
+The executor agent acts on the triage plan -- but it does not touch infrastructure directly. It runs the triage step internally first to understand the situation, then asks Ansible Automation Platform to launch the recommended job templates. It monitors each job until completion and collects the results. The agent decides *what* to run; Ansible Automation Platform governs *how* it runs.
 
 Now run the executor agent to see how it acts on a triage plan:
 
@@ -344,9 +344,9 @@ Wait for the agent to complete (approximately 60-90 seconds, as it launches and 
 
 [IMPORTANT]
 ====
-Notice that the executor agent makes *autonomous decisions* about which templates to run -- it does not ask for your approval. This is the key difference from Challenge 1: the AI decides and acts, you review after.
+Notice that the executor agent makes *autonomous decisions* about which templates to run -- it does not ask for your approval. This is the key difference from Challenge 1: the AI decides what to do, then asks Ansible Automation Platform to execute it. You review after.
 
-But critically, *increasing autonomy does not reduce governance*. The agent still operates under the same user-scoped identity, the same RBAC permissions, and the same audit trail as Challenge 1. It cannot bypass access controls, skip audit logging, or run unvetted commands. The autonomy is in *decision-making*, not in *execution* -- and the governance controls scale with the level of autonomy.
+But critically, *increasing autonomy does not reduce governance*. The agent's reasoning is non-deterministic -- the same alert could produce a slightly different triage plan each time. But the *execution* is deterministic: tested, repeatable Ansible playbooks running through Ansible Automation Platform under the same user-scoped identity, the same RBAC permissions, and the same audit trail as Challenge 1. The agent cannot bypass access controls, skip audit logging, or run unvetted commands. The autonomy is in *decision-making*, not in *execution* -- and the governance controls scale with the level of autonomy.
 ====
 
 === Step 4.2.5: Run the reporter agent
@@ -383,7 +383,7 @@ python3 incident_agent.py all --break-first "Apache web server is down on node1"
 
 [NOTE]
 ====
-The `--break-first` flag first runs the *Break Apache* template to simulate a real incident, then lets the agents respond autonomously.
+The `--break-first` flag first runs the *Break Apache* template to simulate a real incident, then lets the agents respond -- reasoning autonomously, but executing all actions through Ansible Automation Platform.
 ====
 
 Watch the output as each agent completes its work:
@@ -433,12 +433,12 @@ This is a critical test. In production, you do not want an AI agent guessing and
 
 === What you learned
 
-* AI agents operate *autonomously* -- triage, execute, and report without human intervention
-* Each agent has a specialized role, but they all connect to Ansible Automation Platform through MCP
+* AI agents handle the *non-deterministic* work autonomously -- reasoning, triaging, and deciding what to do
+* Ansible Automation Platform handles the *deterministic* work -- executing tested playbooks, enforcing access controls, recording audit trails
 * *Every infrastructure operation goes through Ansible* -- the agent never touches hosts directly
 * The agents exercise *responsible judgment* -- they do not run irrelevant automation
-* Ansible Automation Platform provides the *governance layer*: RBAC, audit trails, and credential management
-* This is the *autonomous* model: AI decides and acts, Ansible governs execution, human reviews after
+* Ansible Automation Platform provides the *governance layer*: user-scoped identity, RBAC, audit trails, and credential management
+* This is the *autonomous* model: AI reasons and decides, Ansible Automation Platform executes deterministically, human reviews after
 
 '''
 
@@ -472,10 +472,9 @@ In Challenge 2, you disabled all EDA activations to prevent interference while r
 4. *Enable* the AI Agent activation:
    ** Click on *AI Agent* to open it
    ** Toggle the activation to *Enabled*
-   ** Click *Save* if prompted
    ** Wait for the status to show *Running*
-
-// TODO: Add screenshot of enabling AI Agent activation
++
+image::eda_ai_agent_running.png[AI Agent Activation Running,60%, link="_images/eda_ai_agent_running.png", window=blank]
 
 [IMPORTANT]
 ====
@@ -498,7 +497,7 @@ This breaks the Apache configuration on node1. Here is what happens next, automa
 * Filebeat sends the event to *Kafka* on the `httpd-error-logs` topic
 * *Event-Driven Ansible* consumes the Kafka event and matches the rule
 * EDA triggers the *AI Agent: Incident Response* job template
-* The AI agent runs autonomously on bastion: triage, execute, report
+* The AI agent reasons autonomously on bastion -- triaging, deciding, and reporting -- while all infrastructure actions execute through Ansible Automation Platform
 
 === Step 4.3.3: Watch the AI agent in action
 
@@ -522,8 +521,6 @@ You should see three stages in the job output:
 2. Navigate to the *Town Square* channel
 3. Look for the AI Agent's incident report
 
-// TODO: Add screenshot of Mattermost showing the agent report
-
 *What to verify in the Mattermost report:*
 
 * *PROBLEM:* -- describes the Apache shutdown
@@ -531,6 +528,8 @@ You should see three stages in the job output:
 * *ACTIONS:* -- which job templates were launched and their results
 * *OUTCOME:* -- whether the issue was resolved
 * *RECOMMENDATION:* -- one actionable suggestion
+
+image::mattermost_agent_report.png[Mattermost AI Agent Report,100%, link="_images/mattermost_agent_report.png", window=blank]
 
 The report should show a *green* bar on the left if the issue was resolved, or a *red* bar if it was not.
 
@@ -663,7 +662,7 @@ You experienced three levels of AI-driven automation, each building on the last.
 | User-scoped identity, RBAC, full audit trail
 
 | Autonomous agents (CrewAI)
-| AI decides and acts
+| AI decides, AAP executes
 | Minutes
 | User-scoped identity, RBAC, full audit trail
 
