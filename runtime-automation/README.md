@@ -1,20 +1,24 @@
 # runtime-automation
 
-This directory is mounted into the `ansible-runner-api` (zt-runner) container at `/runtime-automation`.
-
-It provides the Ansible Runner project structure used by the zt-runner API to execute automation on behalf of the lab.
+This directory is mounted into the `ansible-runner-api` (zt-runner) container
+at `/runtime-automation` and provides per-module solve and validation playbooks.
 
 ## Structure
 
 ```
 runtime-automation/
-├── project/          # Ansible playbooks executed by zt-runner
-│   └── *.yml
-└── inventory/        # Inventory files (generated at deploy time)
-    └── hosts
+├── module-00/
+│   ├── solve.yml       # Solve steps for module 00
+│   └── validation.yml  # Validation checks for module 00
+├── module-01/
+│   ├── solve.yml
+│   └── validation.yml
+└── ...
 ```
 
-## Note
+## Plugins
 
-The `inventory/hosts` file is populated at provisioning time by AgnosticD with the actual lab host details.
-The playbooks in `project/` are stubs — replace them with real automation as the lab content evolves.
+- `validation_check` — conditional check, writes pass/fail message
+- `lab_check_fail` — writes error and fails the playbook
+
+These are provided by the zt-runner container image.

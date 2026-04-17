@@ -1,0 +1,10 @@
+---
+# Module 00 - Log Enrichment and Prompt Generation Workflow
+# Solve: Creates the AI Insights workflow in AAP and triggers Break Apache
+- name: Solve module-00
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Stub - solve for module-00 not yet implemented
+      ansible.builtin.debug:
+        msg: "Module 00 solve stub — implement when grading is needed"

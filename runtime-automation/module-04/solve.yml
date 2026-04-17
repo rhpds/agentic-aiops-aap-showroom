@@ -1,0 +1,9 @@
+---
+# Module 04 solve stub
+- name: Solve module-04
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Stub - solve for module-04 not yet implemented
+      ansible.builtin.debug:
+        msg: "Module 04 solve stub — implement when grading is needed"

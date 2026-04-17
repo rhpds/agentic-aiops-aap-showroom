@@ -1,0 +1,10 @@
+---
+# Module 00 - Log Enrichment and Prompt Generation Workflow
+# Validation: Checks that the AI Insights workflow exists and ran successfully
+- name: Validate module-00
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Stub - validation for module-00 not yet implemented
+      ansible.builtin.debug:
+        msg: "Module 00 validation stub — implement validation_check tasks here"
