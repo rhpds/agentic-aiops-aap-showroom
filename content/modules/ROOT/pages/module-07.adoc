@@ -110,7 +110,7 @@ Claude Code is connected to the MCP server. Type the following prompt and press 
 
 [source,text]
 ----
-What job templates are available in AAP? List them with their IDs and descriptions.
+Search for job templates related to "Apache" in AAP. List their names, IDs, and descriptions.
 ----
 
 Before Claude executes any MCP tool, it will ask for your permission:
@@ -132,9 +132,9 @@ If you want to speed up your workflow, select option *2* to allow Claude to use 
 
 *What to observe:*
 
-* Claude calls the `job_templates_list` MCP tool -- you will see the tool call in the output
+* Claude calls the `job_templates_list` MCP tool with a search filter -- you will see the tool call in the output
 * Claude presents the results in a readable, formatted table
-* You should see templates including *Break Apache*, *Restore Apache*, *Apache Service Status Check*, and others
+* You should see templates including *Break Apache*, *Restore Apache*, and *Apache Service Status Check*
 
 // TODO: Add screenshot of Claude Code showing job template list
 
