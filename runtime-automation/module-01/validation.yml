@@ -1,0 +1,10 @@
+---
+# Module 01 - Remediation Workflow
+# Validation: Checks that httpd is running on node1 after remediation
+- name: Validate module-01
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Stub - validation for module-01 not yet implemented
+      ansible.builtin.debug:
+        msg: "Module 01 validation stub — implement validation_check tasks here"

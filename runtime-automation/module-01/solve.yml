@@ -1,0 +1,10 @@
+---
+# Module 01 - Remediation Workflow
+# Solve: Builds the Remediation Workflow in AAP and executes it
+- name: Solve module-01
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Stub - solve for module-01 not yet implemented
+      ansible.builtin.debug:
+        msg: "Module 01 solve stub — implement when grading is needed"
