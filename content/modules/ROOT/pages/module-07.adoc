@@ -76,9 +76,7 @@ In this challenge, you will use Claude Code -- an AI coding assistant -- to inte
 === Step 4.1.1: Open VS Code
 
 1. Click the *@Codeserver* tab in your lab interface
-2. Log in with your lab credentials if prompted:
-   * Username: `{ssh_user}`
-   * Password: `{ssh_password}`
+2. Enter your password if prompted: `{ssh_password}`
 
 // TODO: Add screenshot of VS Code login
 
