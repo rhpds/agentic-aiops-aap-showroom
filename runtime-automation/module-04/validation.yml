@@ -1,9 +1,0 @@
----
-# Module 04 validation stub
-- name: Validate module-04
-  hosts: localhost
-  gather_facts: false
-  tasks:
-    - name: Stub - validation for module-04 not yet implemented
-      ansible.builtin.debug:
-        msg: "Module 04 validation stub — implement validation_check tasks here"
