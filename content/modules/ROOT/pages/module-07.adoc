@@ -5,57 +5,59 @@
 
 *Estimated time: 30-40 minutes*
 
-In this section, you will explore a fundamentally different approach to AIOps. Instead of pre-built workflows and prompts, you will use AI agents that can directly interact with Ansible Automation Platform through the *Model Context Protocol (MCP)* -- an open standard that lets AI models discover and use tools in real time.
+In earlier parts of this lab, you used AI to *generate* automation. Red Hat AI analyzed logs, Ansible Lightspeed wrote playbooks, and you reviewed the output before running it. The AI was powerful, but it operated in a fixed pipeline: detect, analyze, generate, execute.
+
+In this section, you will explore a fundamentally different approach. Instead of pre-built workflows and prompts, you will use AI agents that can directly interact with Ansible Automation Platform through the *Model Context Protocol (MCP)*, an open standard that lets AI models discover and use tools in real time. The AI no longer generates playbooks. It discovers *existing* automation and decides which playbooks to run, when, and in what order.
 
 You will work through three challenges that progressively increase the level of AI autonomy:
 
-1. *Challenge 1*: You drive the AI -- use Claude Code to interactively query and control Ansible Automation Platform
-2. *Challenge 2*: AI drives Ansible Automation Platform -- autonomous AI agents triage, fix, and report on incidents
-3. *Challenge 3*: Event-driven AI -- Event-Driven Ansible detects failures and triggers AI agents automatically
+1. *Challenge 1: You drive the AI.* Use Claude Code to interactively query and control Ansible Automation Platform.
+2. *Challenge 2: AI drives Ansible Automation Platform.* Autonomous AI agents triage, fix, and report on incidents.
+3. *Challenge 3: Event-driven AI.* Event-Driven Ansible detects failures and triggers AI agents automatically.
 
 == Why Ansible Automation Platform for AI-driven operations?
 
-AI models and agent frameworks are powerful -- but they are inherently *non-deterministic*. The same prompt can produce different results depending on the model, temperature settings, context window, and even the time of day. In a development environment, that variability is acceptable. In production infrastructure, it is not.
+AI models and agent frameworks are powerful, but they are inherently *non-deterministic*. The same prompt can produce different results depending on the model, temperature settings, context window, and even the time of day. In a development environment, that variability is acceptable. In production infrastructure, it is not.
 
 Consider what happens when AI agents interact directly with production systems without governance:
 
 * A misconfigured AI agent at a *financial institution* autonomously rolls back a database migration, corrupting transaction records for thousands of customers.
 * An AI-driven remediation in a *healthcare system* restarts a service that handles patient data, violating HIPAA compliance because no audit trail captured the decision.
-* An autonomous agent in a *retail environment* scales down infrastructure during what it interprets as low traffic -- but it is actually Black Friday pre-staging.
+* An autonomous agent in a *retail environment* scales down infrastructure during what it interprets as low traffic, but it is actually Black Friday pre-staging.
 * An AI agent with direct SSH access to production servers executes an untested fix, taking down a *payment processing pipeline* during peak hours.
 
 These are not hypothetical edge cases. In 2024, an AI-powered coding assistant at a major tech company autonomously merged code that bypassed security reviews, causing a production outage. AI systems operating without governance guardrails create real risk.
 
-*Ansible Automation Platform solves this* by separating what AI is good at from what it is not. AI handles the *non-deterministic* work -- reasoning about incidents, triaging alerts, deciding which action to take. Ansible handles the *deterministic* work -- executing tested playbooks, enforcing access controls, recording audit trails. The AI decides *what* to do. Ansible governs *how* it gets done.
+*Ansible Automation Platform solves this* by separating what AI is good at from what it is not. AI handles the *non-deterministic* work: reasoning about incidents, triaging alerts, deciding which action to take. Ansible handles the *deterministic* work: executing tested playbooks, enforcing access controls, recording audit trails. The AI decides *what* to do. Ansible governs *how* it gets done.
 
-When AI agents need to touch production systems -- restart services, apply patches, modify configurations -- those actions go through Ansible Automation Platform. That means:
+When AI agents need to touch production systems (restart services, apply patches, modify configurations), those actions go through Ansible Automation Platform. That means:
 
-* *Deterministic execution* -- tested, repeatable playbooks replace ad-hoc AI-generated commands
-* *User-scoped identity* -- AI agents act under the identity and permissions of the authorizing user, not a shadow service account with elevated access
-* *RBAC controls* -- the same role-based access that governs human operators governs AI agents
-* *Audit trails* -- every action, every decision, every outcome is captured
-* *Approval gates* -- humans can review AI recommendations before execution
-* *Credential management* -- secrets stay in Ansible, never exposed to AI agent code
+* *Deterministic execution:* tested, repeatable playbooks replace ad-hoc AI-generated commands
+* *User-scoped identity:* AI agents act under the identity and permissions of the authorizing user, not a shadow service account with elevated access
+* *RBAC controls:* the same role-based access that governs human operators governs AI agents
+* *Audit trails:* every action, every decision, every outcome is captured
+* *Approval gates:* humans can review AI recommendations before execution
+* *Credential management:* secrets stay in Ansible, never exposed to AI agent code
 
-In this module, you will see this pattern in action: AI agents connect to Ansible Automation Platform via MCP, but *every infrastructure operation goes through Ansible*. The AI agent never SSHs into a server, never runs ad-hoc commands, never touches infrastructure directly. It discovers available automation, selects the right playbook, and asks Ansible Automation Platform to execute it -- under the authorizing user's identity, with full RBAC, audit, and governance.
+In this module, you will see this pattern in action: AI agents connect to Ansible Automation Platform via MCP, but *every infrastructure operation goes through Ansible*. The AI agent never SSHs into a server, never runs ad-hoc commands, never touches infrastructure directly. It discovers available automation, selects the right playbook, and asks Ansible Automation Platform to execute it, under the authorizing user's identity, with full RBAC, audit, and governance.
 
 == What is MCP?
 
-The *Model Context Protocol (MCP)* is an open standard that allows AI models to discover and use external tools. Think of it as a USB-C port for AI -- a universal connector that lets any AI system plug into any tool server.
+The *Model Context Protocol (MCP)* is an open standard that allows AI models to discover and use external tools. Think of it as a USB-C port for AI: a universal connector that lets any AI system plug into any tool server.
 
 In this lab, Ansible Automation Platform hosts an MCP server that exposes its capabilities as tools:
 
-* *Job Management* -- list, launch, and monitor job templates
-* *Inventory Management* -- query hosts, groups, and inventories
-* *Security* -- manage credentials and audit activity
+* *Job Management:* list, launch, and monitor job templates
+* *Inventory Management:* query hosts, groups, and inventories
+* *Security:* manage credentials and audit activity
 
-Any MCP-compatible AI client can discover these tools automatically and use them to interact with Ansible Automation Platform -- no custom API integration code required.
+Any MCP-compatible AI client can discover these tools automatically and use them to interact with Ansible Automation Platform. No custom API integration code required.
 
 == A note on models and frameworks
 
 In this module, we use *Claude* (by Anthropic) as the AI model and *CrewAI* as the agent framework. These are choices, not requirements.
 
-*Models:* MCP is model-agnostic. Any large language model that supports tool use -- Claude, GPT, Gemini, Llama, Granite, Mistral -- can connect to the Ansible Automation Platform MCP server and interact with the same tools. In earlier modules, you used Ansible Lightspeed with IBM Granite to generate playbooks. Here, you use Claude to interact with Ansible Automation Platform at runtime. Your organization's AI strategy determines which models you use -- the integration pattern remains the same.
+*Models:* MCP is model-agnostic. Any large language model that supports tool use (Claude, GPT, Gemini, Llama, Granite, Mistral) can connect to the Ansible Automation Platform MCP server and interact with the same tools. In earlier parts of this lab, you used Ansible Lightspeed with IBM watsonx Code Assistant to generate playbooks (AI as a *code generator*). Here, you use Claude to interact with Ansible Automation Platform at runtime (AI as a *decision-maker*). Both patterns are valid, and your organization's AI strategy determines which models you use. The integration pattern remains the same.
 
 == Learning objectives
 
@@ -71,7 +73,7 @@ After completing this section, you will be able to:
 
 == 4 - Challenge 1: Human-in-the-loop with Claude Code
 
-In this challenge, you will use Claude Code -- an AI coding assistant -- to interact with Ansible Automation Platform through natural language. Claude Code connects to the MCP server and discovers available tools automatically. You stay in control: you ask questions, review results, and decide what actions to take.
+In this challenge, you will use Claude Code, an AI coding assistant, to interact with Ansible Automation Platform through natural language. Claude Code connects to the MCP server and discovers available tools automatically. You stay in control: you ask questions, review results, and decide what actions to take.
 
 === Step 4.1.1: Open VS Code
 
@@ -121,7 +123,7 @@ Do you want to proceed?
    3. No
 ----
 
-This is an important safety guardrail. Claude Code requires explicit human approval before calling external tools -- it will not take action on its own without your consent. Select *1. Yes* to approve the tool call and continue. You will see this prompt each time Claude wants to use a new MCP tool.
+This is an important safety guardrail. Claude Code requires explicit human approval before calling external tools. It will not take action on its own without your consent. Select *1. Yes* to approve the tool call and continue. You will see this prompt each time Claude wants to use a new MCP tool.
 
 [TIP]
 ====
@@ -130,7 +132,7 @@ If you want to speed up your workflow, select option *2* to allow Claude to use 
 
 *What to observe:*
 
-* Claude calls the `job_templates_list` MCP tool with a search filter -- you will see the tool call in the output
+* Claude calls the `job_templates_list` MCP tool with a search filter. You will see the tool call in the output.
 * Claude presents the results in a readable, formatted table
 * You should see templates including *Break Apache*, *Restore Apache*, and *Apache Service Status Check*
 
@@ -168,7 +170,7 @@ Show me the most recent jobs that have run. Were there any failures?
 * It highlights any failures and shows job status (successful, failed, running)
 * You should see the jobs that were launched during the lab provisioning process
 
-=== Step 4.1.6: Take action -- diagnose a problem
+=== Step 4.1.6: Take action and diagnose a problem
 
 Now ask Claude to take an action. Type the following prompt:
 
@@ -188,9 +190,9 @@ Launch the "Apache Service Status Check" job template and show me the results wh
 
 [IMPORTANT]
 ====
-Notice what is happening here: Claude *does not SSH into node1* to check Apache. It asks Ansible Automation Platform to run a job template -- a pre-approved, tested playbook -- and reads the results. The AI never touches infrastructure directly.
+Notice what is happening here: Claude *does not SSH into node1* to check Apache. It asks Ansible Automation Platform to run a job template (a pre-approved, tested playbook) and reads the results. The AI never touches infrastructure directly.
 
-Also notice *who* is executing: Claude uses your lab user's gateway token, which means it operates under *your* RBAC permissions. You can verify this in the Ansible Automation Platform UI: navigate to *Access Management* -> *OAuth2 Tokens* and you will see the token that the MCP server uses. If your user lacked access to the Apache templates, Claude would be denied -- just like a human operator would be. There are no hidden service accounts or elevated AI privileges.
+Also notice *who* is executing: Claude uses your lab user's gateway token, which means it operates under *your* RBAC permissions. You can verify this in the Ansible Automation Platform UI: navigate to *Access Management* -> *OAuth2 Tokens* and you will see the token that the MCP server uses. If your user lacked access to the Apache templates, Claude would be denied, just like a human operator would be. There are no hidden service accounts or elevated AI privileges.
 ====
 
 === Step 4.1.7: Try your own prompts
@@ -204,9 +206,9 @@ Now experiment on your own. Here are some ideas:
 
 === What you learned
 
-* *MCP lets any AI model discover and use Ansible Automation Platform* -- no custom API code, no hardcoded integrations, model-agnostic by design
-* *All infrastructure operations go through Ansible* -- the AI never accesses hosts directly, every action is governed by RBAC and recorded in the audit trail
-* *You stay in control* -- the AI suggests, you decide and approve, making this the human-in-the-loop model for AI-driven operations
+* *MCP lets any AI model discover and use Ansible Automation Platform.* No custom API code, no hardcoded integrations, model-agnostic by design.
+* *All infrastructure operations go through Ansible.* The AI never accesses hosts directly. Every action is governed by RBAC and recorded in the audit trail.
+* *You stay in control.* The AI suggests, you decide and approve. This is the human-in-the-loop model for AI-driven operations.
 
 '''
 
@@ -214,28 +216,23 @@ Now experiment on your own. Here are some ideas:
 
 === What is an AI agent?
 
-In Challenge 1, you typed prompts and decided what to do next. An AI *agent* removes you from that loop. An agent is a program that receives a goal, then autonomously figures out how to achieve it. What distinguishes an agent from a simple LLM call or a script:
+In Challenge 1, you typed prompts and decided what to do next. In the earlier parts of this lab, you built workflows that followed a fixed sequence: check status, call AI, generate playbook, commit to Git, execute. An AI *agent* is different. It receives a goal and autonomously figures out how to achieve it. It can call external tools, break a problem into steps, make decisions based on what it observes, and adjust its approach when something does not work.
 
-* *Tool use* -- it can call external tools (APIs, MCP servers, databases) to take actions in the real world, not just generate text
-* *Reasoning and planning* -- it breaks a goal into steps and decides what to do next based on what it observes
-* *Autonomy* -- it runs without human input for each step, making its own decisions along the way
-* *Introspection* -- it can evaluate its own results, recognize when something did not work, and adjust its approach
-
-In this lab, each agent is a small Python program that connects to an LLM, receives a goal (for example, "Apache is down on node1"), and autonomously decides which MCP tools to call, in what order, and what to do with the results.
+In this lab, each agent is a small Python program that connects to an LLM, receives a goal (for example, "Apache is down on node1"), and autonomously decides which MCP tools to call, in what order, and what to do with the results. You do not build the workflow in advance. The agent builds it at runtime.
 
 === Why CrewAI?
 
-CrewAI is one of many open-source agent frameworks available today (LangGraph, AutoGen, Semantic Kernel, and others). We chose it because it is simple to understand and demonstrates multi-agent collaboration clearly. The key concept is not the framework -- it is the *integration pattern*: AI agents connected to Ansible Automation Platform through MCP, with Ansible providing the governed execution layer for all infrastructure operations.
+CrewAI is one of many open-source agent frameworks available today (LangGraph, AutoGen, Semantic Kernel, and others). We chose it because it is simple to understand and demonstrates multi-agent collaboration clearly. The key concept is not the framework. It is the *integration pattern*: AI agents connected to Ansible Automation Platform through MCP, with Ansible providing the governed execution layer for all infrastructure operations.
 
-In this challenge, you move from human-in-the-loop to *autonomous agents*. You will run an incident response crew -- a team of specialized AI agents that collaborate to handle an incident without human intervention.
+In this challenge, you move from human-in-the-loop to *autonomous agents*. You will run an incident response crew, a team of specialized AI agents that collaborate to handle an incident without human intervention.
 
 The incident agent has three specialists:
 
-* *Triage Agent* -- discovers available automation, confirms the target host, and creates an action plan
-* *Executor Agent* -- launches the recommended job templates, monitors their progress, and collects results
-* *Reporter Agent* -- summarizes the entire incident response into a concise report
+* *Triage Agent* discovers available automation, confirms the target host, and creates an action plan
+* *Executor Agent* launches the recommended job templates, monitors their progress, and collects results
+* *Reporter Agent* summarizes the entire incident response into a concise report
 
-Each agent connects to Ansible Automation Platform through the *same MCP server* as Claude Code. The agents discover available automation, select the right job templates, and ask Ansible Automation Platform to execute them. The AI agents *never* SSH into servers or run ad-hoc commands -- every infrastructure operation goes through Ansible.
+Each agent connects to Ansible Automation Platform through the *same MCP server* as Claude Code. The agents discover available automation, select the right job templates, and ask Ansible Automation Platform to execute them. The AI agents *never* SSH into servers or run ad-hoc commands. Every infrastructure operation goes through Ansible.
 
 === Step 4.2.1: Disable EDA activations
 
@@ -282,9 +279,9 @@ Expected output:
 
 === Step 4.2.3: Run the triage agent
 
-The triage agent is the first responder. Its job is to discover what automation is available, confirm the target host exists, and create an action plan for resolving the issue. It does not take any action itself -- it only investigates and recommends.
+The triage agent is the first responder. Its job is to discover what automation is available, confirm the target host exists, and create an action plan for resolving the issue. It does not take any action itself. It only investigates and recommends.
 
-In this step, you are *not* breaking anything yet. Apache is still running normally on node1. You are passing a simulated alert message to the triage agent to see how it reasons about a reported problem. The agent will discover available automation, build an action plan, and then confirm that Apache is actually running fine -- demonstrating that it checks reality before taking action.
+In this step, you are *not* breaking anything yet. Apache is still running normally on node1. You are passing a simulated alert message to the triage agent to see how it reasons about a reported problem. The agent will discover available automation, build an action plan, and then confirm that Apache is actually running fine, demonstrating that it checks reality before taking action.
 
 Run only the triage agent first to see how it analyzes the situation:
 
@@ -297,10 +294,10 @@ Wait for the agent to complete (approximately 15-30 seconds). Review the output 
 
 *What to verify in the triage output:*
 
-* *PROBLEM:* -- the agent should identify the Apache shutdown
-* *TEMPLATES:* -- the agent should list relevant templates: `Apache Service Status Check`, `Restore Apache`
-* *HOST:* -- the agent should confirm that `node1` exists in `lab-inventory`
-* *PLAN:* -- the agent should propose a numbered sequence: check status, restore, verify
+* *PROBLEM:* the agent should identify the Apache shutdown
+* *TEMPLATES:* the agent should list relevant templates: `Apache Service Status Check`, `Restore Apache`
+* *HOST:* the agent should confirm that `node1` exists in `lab-inventory`
+* *PLAN:* the agent should propose a numbered sequence: check status, restore, verify
 
 // TODO: Add screenshot of triage agent output
 
@@ -318,7 +315,7 @@ This is useful for understanding *how* the agent makes decisions.
 
 === Step 4.2.4: Run the executor agent
 
-The executor agent acts on the triage plan -- but it does not touch infrastructure directly. It runs the triage step internally first to understand the situation, then asks Ansible Automation Platform to launch the recommended job templates. It monitors each job until completion and collects the results. The agent decides *what* to run; Ansible Automation Platform governs *how* it runs.
+The executor agent acts on the triage plan, but it does not touch infrastructure directly. It runs the triage step internally first to understand the situation, then asks Ansible Automation Platform to launch the recommended job templates. It monitors each job until completion and collects the results. The agent decides *what* to run; Ansible Automation Platform governs *how* it runs.
 
 Now run the executor agent to see how it acts on a triage plan:
 
@@ -332,7 +329,7 @@ Wait for the agent to complete (approximately 60-90 seconds, as it launches and 
 *What to verify in the execution output:*
 
 * The agent runs the triage step internally first (to know what to do)
-* It launches job templates through Ansible Automation Platform -- *not* by running commands directly
+* It launches job templates through Ansible Automation Platform, *not* by running commands directly
 * Each job is monitored until completion
 * The output reports success or failure for each job
 
@@ -340,14 +337,14 @@ Wait for the agent to complete (approximately 60-90 seconds, as it launches and 
 
 [IMPORTANT]
 ====
-Notice that the executor agent makes *autonomous decisions* about which templates to run -- it does not ask for your approval. This is the key difference from Challenge 1: the AI decides what to do, then asks Ansible Automation Platform to execute it. You review after.
+Notice that the executor agent makes *autonomous decisions* about which templates to run. It does not ask for your approval. This is the key difference from Challenge 1: the AI decides what to do, then asks Ansible Automation Platform to execute it. You review after.
 
-But critically, *increasing autonomy does not reduce governance*. The agent's reasoning is non-deterministic -- the same alert could produce a slightly different triage plan each time. But the *execution* is deterministic: tested, repeatable Ansible playbooks running through Ansible Automation Platform under the same user-scoped identity, the same RBAC permissions, and the same audit trail as Challenge 1. The agent cannot bypass access controls, skip audit logging, or run unvetted commands. The autonomy is in *decision-making*, not in *execution* -- and the governance controls scale with the level of autonomy.
+But critically, *increasing autonomy does not reduce governance*. The agent's reasoning is non-deterministic. The same alert could produce a slightly different triage plan each time. But the *execution* is deterministic: tested, repeatable Ansible playbooks running through Ansible Automation Platform under the same user-scoped identity, the same RBAC permissions, and the same audit trail as Challenge 1. The agent cannot bypass access controls, skip audit logging, or run unvetted commands. The autonomy is in *decision-making*, not in *execution*, and the governance controls scale with the level of autonomy.
 ====
 
 === Step 4.2.5: Run the reporter agent
 
-The reporter agent runs the entire pipeline -- triage and execution -- then summarizes everything into a concise incident report. Its job is to produce a clear record of what happened, what was done, and whether the issue was resolved.
+The reporter agent runs the entire pipeline (triage and execution), then summarizes everything into a concise incident report. Its job is to produce a clear record of what happened, what was done, and whether the issue was resolved.
 
 Run the reporter agent to generate an incident summary:
 
@@ -360,17 +357,17 @@ Wait for the agent to complete (approximately 90-120 seconds, as it runs all thr
 
 *What to verify in the report output:*
 
-* *PROBLEM:* -- what happened
-* *TRIAGE:* -- what was found
-* *ACTIONS:* -- what was done and the results
-* *OUTCOME:* -- resolved or not
-* *RECOMMENDATION:* -- one actionable suggestion
+* *PROBLEM:* what happened
+* *TRIAGE:* what was found
+* *ACTIONS:* what was done and the results
+* *OUTCOME:* resolved or not
+* *RECOMMENDATION:* one actionable suggestion
 
 // TODO: Add screenshot of reporter agent output
 
 === Step 4.2.6: Run the full pipeline with a simulated incident
 
-Now run all three agents in sequence -- triage, execute, and report -- with a simulated incident:
+Now run all three agents in sequence (triage, execute, and report) with a simulated incident:
 
 [source,bash]
 ----
@@ -379,14 +376,14 @@ python3 incident_agent.py all --break-first "Apache web server is down on node1"
 
 [NOTE]
 ====
-The `--break-first` flag first runs the *Break Apache* template to simulate a real incident, then lets the agents respond -- reasoning autonomously, but executing all actions through Ansible Automation Platform.
+The `--break-first` flag first runs the *Break Apache* template to simulate a real incident, then lets the agents respond. They reason autonomously, but execute all actions through Ansible Automation Platform.
 ====
 
 Watch the output as each agent completes its work:
 
-* *TRIAGE* -- the action plan appears first
-* *EXECUTION* -- jobs are launched and monitored
-* *REPORT* -- a final incident summary is produced
+* *TRIAGE:* the action plan appears first
+* *EXECUTION:* jobs are launched and monitored
+* *REPORT:* a final incident summary is produced
 
 This is the full autonomous incident response pipeline: detect, triage, remediate, verify, report.
 
@@ -396,10 +393,10 @@ This is the full autonomous incident response pipeline: detect, triage, remediat
 2. Navigate to *Automation Execution* -> *Jobs*
 3. You should see jobs launched by the AI agents. Look for:
 +
-* &#x2705; *Break Apache* -- the simulated incident (launched by `--break-first`)
-* &#x2705; *Apache Service Status Check* -- the diagnostic check (launched by the agent)
-* &#x2705; *Restore Apache* -- the remediation (launched by the agent)
-* &#x2705; *Apache Service Status Check* -- the verification (launched by the agent)
+* &#x2705; *Break Apache* (the simulated incident, launched by `--break-first`)
+* &#x2705; *Apache Service Status Check* (the diagnostic check, launched by the agent)
+* &#x2705; *Restore Apache* (the remediation, launched by the agent)
+* &#x2705; *Apache Service Status Check* (the verification, launched by the agent)
 +
 4. Click on any job to review its output and verify it completed successfully
 
@@ -407,7 +404,7 @@ This is the full autonomous incident response pipeline: detect, triage, remediat
 
 [NOTE]
 ====
-Every job launched by the AI agent appears in the Ansible Automation Platform job history with full audit details: who launched it, when, which credentials were used, and the complete output. This is the governance value -- even when AI makes the decisions, Ansible provides the audit trail.
+Every job launched by the AI agent appears in the Ansible Automation Platform job history with full audit details: who launched it, when, which credentials were used, and the complete output. This is the governance value. Even when AI makes the decisions, Ansible provides the audit trail.
 ====
 
 === Step 4.2.8: Test the agent's judgment
@@ -429,9 +426,9 @@ This is a critical test. In production, you do not want an AI agent guessing and
 
 === What you learned
 
-* *AI reasons, Ansible executes* -- agents handle the non-deterministic work (triaging, deciding) while Ansible Automation Platform handles the deterministic work (executing tested playbooks, enforcing access controls, recording audit trails)
-* *Agents exercise responsible judgment* -- they do not run irrelevant automation, and when they cannot help, they say so
-* *Governance scales with autonomy* -- user-scoped identity, RBAC, and full audit trails apply whether a human drives the AI or the AI drives itself
+* *AI reasons, Ansible executes.* Agents handle the non-deterministic work (triaging, deciding) while Ansible Automation Platform handles the deterministic work (executing tested playbooks, enforcing access controls, recording audit trails).
+* *Agents exercise responsible judgment.* They do not run irrelevant automation, and when they cannot help, they say so.
+* *Governance scales with autonomy.* User-scoped identity, RBAC, and full audit trails apply whether a human drives the AI or the AI drives itself.
 
 '''
 
@@ -439,9 +436,9 @@ This is a critical test. In production, you do not want an AI agent guessing and
 
 In Challenges 1 and 2, you ran AI agents interactively from the command line. That is great for development and testing, but how do you put AI agents into production? In this challenge, you will operationalize the AI agent using the tools Ansible Automation Platform already provides: Event-Driven Ansible for detection, job templates for execution, and Mattermost for notification.
 
-This is the highest level of autonomy in this module -- fully automated from detection to resolution. But the governance model does not change. The AI agent still operates under the same user-scoped identity, the same RBAC controls, and the same audit trail. Every action is logged, every job is traceable, and every credential is managed by Ansible Automation Platform. The automation becomes faster, not less governed.
+This is the highest level of autonomy in this module: fully automated from detection to resolution. But the governance model does not change. The AI agent still operates under the same user-scoped identity, the same RBAC controls, and the same audit trail. Every action is logged, every job is traceable, and every credential is managed by Ansible Automation Platform. The automation becomes faster, not less governed.
 
-This works -- and it works well. Along the way, you will also see where the current approach requires creative engineering, and where the upcoming automation orchestrator will make things simpler.
+This works, and it works well. Along the way, you will also see where the current approach requires creative engineering, and where the upcoming automation orchestrator will make things simpler.
 
 === How it works
 
@@ -451,9 +448,9 @@ This works -- and it works well. Along the way, you will also see where the curr
 2. *Filebeat* captures the log event and sends it to *Kafka*
 3. *Event-Driven Ansible* consumes the Kafka topic and triggers a job template
 4. The job template runs the *AI agent* on bastion
-5. The agent triages, remediates (if possible), and posts results to *Mattermost*
+5. The agent triages, remediates (if possible), and posts results to *Mattermost*.
 
-Notice that this uses the same EDA pipeline you saw in earlier modules. The only difference is what gets triggered -- instead of a deterministic playbook, EDA launches an AI agent. Your existing event-driven infrastructure works unchanged. You are just swapping what happens when an event arrives.
+Notice that this uses the same EDA pipeline you saw in earlier modules. The only difference is what gets triggered. Instead of a deterministic playbook, EDA launches an AI agent. Your existing event-driven infrastructure works unchanged. You are just swapping what happens when an event arrives.
 
 === Step 4.3.1: Enable the AI Agent EDA activation
 
@@ -471,7 +468,7 @@ image::eda_ai_agent_running.png[AI Agent Activation Running,60%, link="_images/e
 
 [IMPORTANT]
 ====
-The *Web App* activation must remain disabled. Both activations listen for Apache events on the same Kafka topic -- running both simultaneously would cause duplicate responses to the same event.
+The *Web App* activation must remain disabled. Both activations listen for Apache events on the same Kafka topic. Running both simultaneously would cause duplicate responses to the same event.
 ====
 
 === Step 4.3.2: Break Apache and watch the AI respond
@@ -490,21 +487,21 @@ This breaks the Apache configuration on node1. Here is what happens next, automa
 * Filebeat sends the event to *Kafka* on the `httpd-error-logs` topic
 * *Event-Driven Ansible* consumes the Kafka event and matches the rule
 * EDA triggers the *AI Agent: Incident Response* job template
-* The AI agent reasons autonomously on bastion -- triaging, deciding, and reporting -- while all infrastructure actions execute through Ansible Automation Platform
+* The AI agent reasons autonomously on bastion (triaging, deciding, and reporting) while all infrastructure actions execute through Ansible Automation Platform
 
 === Step 4.3.3: Watch the AI agent in action
 
 1. Navigate to *Automation Execution* -> *Jobs*
-2. Watch for the *AI Agent: Incident Response* job to appear -- this was triggered automatically by EDA (it may take 30-60 seconds after the Break Apache job completes)
+2. Watch for the *AI Agent: Incident Response* job to appear. This was triggered automatically by EDA (it may take 30-60 seconds after the Break Apache job completes).
 3. Click on the job to view the output
 
 // TODO: Add screenshot of AI Agent job appearing in Jobs list
 
 You should see three stages in the job output:
 
-* *Stage 1: Triage* -- the agent identifies available Apache-related templates and creates a plan
-* *Stage 2: Execute* -- the agent launches Restore Apache and monitors the job
-* *Stage 3: Report* -- the agent produces a summary and posts it to Mattermost
+* *Stage 1: Triage.* The agent identifies available Apache-related templates and creates a plan.
+* *Stage 2: Execute.* The agent launches Restore Apache and monitors the job.
+* *Stage 3: Report.* The agent produces a summary and posts it to Mattermost.
 
 // TODO: Add screenshot of AI Agent job output showing stages
 
@@ -516,18 +513,18 @@ You should see three stages in the job output:
 
 *What to verify in the Mattermost report:*
 
-* *PROBLEM:* -- describes the Apache shutdown
-* *TRIAGE:* -- what the agent found
-* *ACTIONS:* -- which job templates were launched and their results
-* *OUTCOME:* -- whether the issue was resolved
-* *RECOMMENDATION:* -- one actionable suggestion
+* *PROBLEM:* describes the Apache shutdown
+* *TRIAGE:* what the agent found
+* *ACTIONS:* which job templates were launched and their results
+* *OUTCOME:* whether the issue was resolved
+* *RECOMMENDATION:* one actionable suggestion
 
 image::mattermost_agent_report.png[Mattermost AI Agent Report,100%, link="_images/mattermost_agent_report.png", window=blank]
 
 The report should show a *green* bar on the left if the issue was resolved, or a *red* bar if it was not.
 
 ////
-=== Step 4.3.5: Test the agent's judgment -- a problem it cannot fix
+=== Step 4.3.5: Test the agent's judgment with a problem it cannot fix
 
 Now test what happens when the AI agent encounters a problem it has no automation for:
 
@@ -549,9 +546,9 @@ Now test what happens when the AI agent encounters a problem it has no automatio
 *What to verify:*
 
 * The agent should search for crond-related templates and find *none*
-* The agent should *not* run Apache-related templates -- they are irrelevant
+* The agent should *not* run Apache-related templates. They are irrelevant.
 * The agent should report that manual intervention is needed
-* Check Mattermost -- the report should show a *red* bar indicating the issue is unresolved
+* Check Mattermost. The report should show a *red* bar indicating the issue is unresolved.
 
 // TODO: Add screenshot of Mattermost showing unresolved crond report
 
@@ -569,23 +566,23 @@ After completing this challenge, re-enable the Web App activation:
 
 === What you learned
 
-* *Your existing EDA infrastructure works unchanged* -- you swap the action from a deterministic playbook to an AI agent without modifying the event pipeline
-* *End-to-end automation from detection to resolution* -- the agent handles triage, remediation, verification, and notification autonomously through Ansible Automation Platform
-* *Full governance in fully autonomous mode* -- every infrastructure operation still goes through Ansible with RBAC, user-scoped identity, and complete audit trails
+* *Your existing EDA infrastructure works unchanged.* You swap the action from a deterministic playbook to an AI agent without modifying the event pipeline.
+* *End-to-end automation from detection to resolution.* The agent handles triage, remediation, verification, and notification autonomously through Ansible Automation Platform.
+* *Full governance in fully autonomous mode.* Every infrastructure operation still goes through Ansible with RBAC, user-scoped identity, and complete audit trails.
 
 === What required creative engineering
 
 This approach works, and it demonstrates real value. But as you went through the challenge, you may have noticed areas where the integration required some creative engineering:
 
-* *The agent runs as a Python script wrapped in a job template.* This works, but the agent is essentially a black box to Ansible Automation Platform. The platform launches it, waits for it to finish, and captures stdout -- it cannot see inside the agent's decision-making process.
+* *The agent runs as a Python script wrapped in a job template.* This works, but the agent is essentially a black box to Ansible Automation Platform. The platform launches it, waits for it to finish, and captures stdout. It cannot see inside the agent's decision-making process.
 
-* *No approval gate between triage and execution.* In Challenge 2, you saw the triage agent produce an action plan. In a production scenario, you might want a human to review that plan before the executor agent acts on it. Today, you could build this with a workflow that has an approval node between two job templates -- but translating the agent's triage output into a meaningful approval prompt requires custom glue code.
+* *No approval gate between triage and execution.* In Challenge 2, you saw the triage agent produce an action plan. In a production scenario, you might want a human to review that plan before the executor agent acts on it. Today, you could build this with a workflow that has an approval node between two job templates, but translating the agent's triage output into a meaningful approval prompt requires custom glue code.
 
-* *Two audit trails.* Ansible Automation Platform tracks the job template execution (who launched it, when, success/failure). But the agent's internal reasoning -- which templates it considered, why it chose a specific action, what MCP tools it called -- lives in stdout. There is no unified view.
+* *Two audit trails.* Ansible Automation Platform tracks the job template execution (who launched it, when, success/failure). But the agent's internal reasoning (which templates it considered, why it chose a specific action, what MCP tools it called) lives in stdout. There is no unified view.
 
 * *Context does not flow natively.* The agent discovers the state of Ansible Automation Platform by querying MCP tools at runtime. It works, but data does not flow between the EDA event, the job template, and the agent as a connected pipeline.
 
-None of these are blockers -- you just built a working end-to-end system. But they represent areas where the platform can evolve to make AI agent integration simpler, more governed, and more transparent.
+None of these are blockers. You just built a working end-to-end system. But they represent areas where the platform can evolve to make AI agent integration simpler, more governed, and more transparent.
 
 '''
 
@@ -593,7 +590,7 @@ None of these are blockers -- you just built a working end-to-end system. But th
 
 What you built today works. The question is: how do you scale this across an enterprise with hundreds of agents, thousands of events, and strict governance requirements?
 
-The *automation orchestrator* is an exciting new capability coming to Ansible Automation Platform that enables AI agents to natively invoke governed automation through visual workflow design and unified audit trails. Ansible Automation Platform is not becoming an agent runtime or agent hosting platform -- it remains the *trusted execution layer* that agents call. The automation orchestrator makes that integration seamless.
+The *automation orchestrator* is an exciting new capability coming to Ansible Automation Platform that enables AI agents to natively invoke governed automation through visual workflow design and unified audit trails. Ansible Automation Platform is not becoming an agent runtime or agent hosting platform. It remains the *trusted execution layer* that agents call. The automation orchestrator makes that integration seamless.
 
 === How the automation orchestrator changes the game
 
@@ -622,20 +619,20 @@ The *automation orchestrator* is an exciting new capability coming to Ansible Au
 | Visual drag-and-drop designer with AI and Ansible nodes side by side
 
 | Model integration
-| External -- you configure the AI model connection and proxy
-| Built-in -- bring your own model through standardized APIs
+| External: you configure the AI model connection and proxy
+| Built-in: bring your own model through standardized APIs
 |===
 
 === The vision
 
 The automation orchestrator enables a new class of automation workflows where AI agents invoke governed automation through Ansible Automation Platform:
 
-* *AI decision nodes* that analyze data and choose the next workflow path -- with every decision audited
-* *Human-in-the-loop gates* where an operator reviews the AI's recommendation before execution -- with full context, not just stdout
-* *Mixed workflows* that combine Ansible playbooks, AI-driven decisions, external tools, and approval steps in a single visual workflow
-* *Unified governance* with user-scoped identity, RBAC, audit trails, and compliance across all automation types -- deterministic and non-deterministic alike
+* *AI decision nodes* that analyze data and choose the next workflow path, with every decision audited
+* *Human-in-the-loop gates* where an operator reviews the AI's recommendation before execution, with full context, not just stdout
+* *Mixed workflows* that combine Ansible playbooks, AI-driven decisions, external tools, and approval steps in a single visual workflow across Linux, network, and Windows infrastructure
+* *Unified governance* with user-scoped identity, RBAC, audit trails, and compliance across all automation types, deterministic and non-deterministic alike
 
-What you built today -- AI agents interacting with Ansible Automation Platform via MCP, triggered by Event-Driven Ansible, operationalized through job templates -- is the foundation. Every pattern you used in this module carries forward. The automation orchestrator makes that integration native, governed, and enterprise-ready.
+What you built today is the foundation: AI agents interacting with Ansible Automation Platform via MCP, triggered by Event-Driven Ansible, operationalized through job templates. Every pattern you used in this module carries forward. The automation orchestrator makes that integration native, governed, and enterprise-ready.
 
 '''
 
@@ -671,22 +668,22 @@ The governance column is intentionally identical across all three rows. That is 
 
 Across all three challenges, two principles remained constant:
 
-. *AI agents never touched infrastructure directly.* Every operation -- checking Apache status, restoring configurations, querying inventory -- went through Ansible Automation Platform. The AI decided *what* to do. Ansible governed *how* it was done.
+. *AI agents never touched infrastructure directly.* Every operation (checking Apache status, restoring configurations, querying inventory) went through Ansible Automation Platform. The AI decided *what* to do. Ansible governed *how* it was done.
 
-. *Governance never decreased as autonomy increased.* Whether you drove the AI interactively, let agents act autonomously, or fully automated the pipeline with EDA -- the same user-scoped identity, RBAC controls, and audit trails applied. More autonomy did not mean less oversight.
+. *Governance never decreased as autonomy increased.* Whether you drove the AI interactively, let agents act autonomously, or fully automated the pipeline with EDA, the same user-scoped identity, RBAC controls, and audit trails applied. More autonomy did not mean less oversight.
 
-This is the pattern for enterprise AI-driven operations: AI handles the non-deterministic work -- reasoning, triaging, deciding. Ansible handles the deterministic work -- executing tested playbooks, enforcing access controls, recording audit trails. Together, they deliver autonomous operations with enterprise-grade trust.
+This is the pattern for enterprise AI-driven operations: AI handles the non-deterministic work: reasoning, triaging, deciding. Ansible handles the deterministic work: executing tested playbooks, enforcing access controls, recording audit trails. Together, they deliver autonomous operations with enterprise-grade trust.
 
-The automation orchestrator will make this integration native -- visual workflow design, unified audit trails, and seamless human-in-the-loop gates -- turning the creative engineering you saw today into governed, enterprise-ready simplicity.
+The automation orchestrator will make this integration native: visual workflow design, unified audit trails, and seamless human-in-the-loop gates, turning the creative engineering you saw today into governed, enterprise-ready simplicity.
 
 == Complete
 
 Three takeaways from this module:
 
-. *Ansible Automation Platform is the trusted execution layer for AI agents interacting with IT infrastructure.* Agents reason and decide, but every action -- restarting services, applying configurations, querying inventory -- goes through Ansible with deterministic, auditable, and repeatable execution. No shadow access, no ad-hoc commands, no ungoverned AI.
+. *Ansible Automation Platform is the trusted execution layer for AI agents interacting with IT infrastructure.* Agents reason and decide, but every action (restarting services, applying configurations, querying inventory) goes through Ansible with deterministic, auditable, and repeatable execution. No shadow access, no ad-hoc commands, no ungoverned AI.
 
 . *AI-driven automation reduces mean time to repair without sacrificing compliance.* From the moment an event fires to the moment a remediation completes, the entire pipeline is automated, audited, and governed under user-scoped identity and RBAC. Organizations get faster incident response while maintaining the compliance posture their security and audit teams require.
 
-. *You can adopt agentic automation incrementally with the tools you already have.* You do not need to wait for a new platform or rip out existing workflows. Event-Driven Ansible, job templates, and MCP work together today. Start with human-in-the-loop AI assistance, progress to autonomous agents when your organization is ready, and look ahead to the automation orchestrator for native integration -- all on the same Ansible Automation Platform foundation.
+. *You can adopt agentic automation incrementally with the tools you already have.* You do not need to wait for a new platform or rip out existing workflows. Event-Driven Ansible, job templates, and MCP work together today. Start with human-in-the-loop AI assistance, progress to autonomous agents when your organization is ready, and look ahead to the automation orchestrator for native integration, all on the same Ansible Automation Platform foundation.
 
 Click the link below to proceed to the *Summary and Call to Actions*.
