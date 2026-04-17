@@ -1,0 +1,19 @@
+---
+# Stub: Break Apache httpd on node1
+# This playbook inserts an invalid directive into httpd.conf
+# and restarts the service to simulate an incident for the AIOps workflow.
+- name: Break Apache httpd service
+  hosts: node1
+  become: true
+  tasks:
+    - name: Insert invalid directive into httpd.conf
+      ansible.builtin.lineinfile:
+        path: /etc/httpd/conf/httpd.conf
+        line: "InvalidDirectiveHere"
+        insertafter: EOF
+
+    - name: Restart httpd to trigger failure
+      ansible.builtin.service:
+        name: httpd
+        state: restarted
+      ignore_errors: true
