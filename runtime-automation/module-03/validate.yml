@@ -1,0 +1,103 @@
+---
+# Module 03 — Section 4: Event Driven Ansible
+# Validation: Confirms the "ospf-neighbor" EDA rulebook activation is in Running state.
+- name: Module 03 - EDA Validation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    student_user: "{{ user | default('') }}"
+    aap_url: "{{ controller_url | default('') }}"
+    aap_user: "{{ controller_username | default('') }}"
+    aap_pass: "{{ controller_password | default('') }}"
+    eda_api_base: "{{ aap_url }}/api/eda/v1"
+    activation_name: "ospf-neighbor"
+
+  tasks:
+
+    # -------------------------------------------------------
+    # Check 1 — AAP controller is reachable
+    # -------------------------------------------------------
+    - name: Ping AAP controller
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/ping/"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+        status_code: [200]
+      register: r_ping
+      ignore_errors: true
+
+    # -------------------------------------------------------
+    # Check 2 — EDA activation "ospf-neighbor" exists and is running
+    # -------------------------------------------------------
+    - name: Query EDA activation by exact name
+      ansible.builtin.uri:
+        url: "{{ eda_api_base }}/activations/?name={{ activation_name }}"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+        status_code: [200]
+      register: r_exact
+      ignore_errors: true
+
+    - name: Broader EDA search (name__icontains=ospf) when exact returns nothing
+      ansible.builtin.uri:
+        url: "{{ eda_api_base }}/activations/?name__icontains=ospf"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+        status_code: [200]
+      register: r_broad
+      when:
+        - r_exact.status | default(0) == 200
+        - (r_exact.json.count | default(0)) == 0
+      ignore_errors: true
+
+    - name: Resolve activation result list
+      ansible.builtin.set_fact:
+        _activation_results: >-
+          {{
+            r_exact.json.results
+            if (r_exact.json.count | default(0)) > 0
+            else (r_broad.json.results | default([]))
+          }}
+
+    - name: Extract activation status from result list
+      ansible.builtin.set_fact:
+        _activation_status: "{{ (_activation_results | first).status | lower }}"
+      when: (_activation_results | default([]) | length) > 0
+
+    # -------------------------------------------------------
+    # Build task results
+    # -------------------------------------------------------
+    - name: Build task results
+      ansible.builtin.set_fact:
+        _task1_ok: "{{ r_ping is defined and r_ping.status | default(0) == 200 }}"
+        _task2_ok: >-
+          {{
+            (_activation_results | default([]) | length) > 0
+            and (_activation_status | default('')) == 'running'
+          }}
+
+    # -------------------------------------------------------
+    # Validate all tasks
+    # -------------------------------------------------------
+    - name: Validate all tasks
+      rhpds.ftl.validation_check:
+        check: "{{ _task1_ok and _task2_ok }}"
+        pass_msg: |
+          Task 1: AAP controller is reachable
+          Task 2: EDA rulebook activation "ospf-neighbor" is running
+        error_msg: |
+          {{ 'Task 1: AAP controller is reachable' if _task1_ok else 'Task 1: AAP controller is NOT reachable — check controller_url and credentials' }}
+          {{ 'Task 2: EDA rulebook activation "ospf-neighbor" is running' if _task2_ok else 'Task 2: FAILED — activation "ospf-neighbor" is not running (status=' + (_activation_status | default('not found')) + '). Open the EDA controller UI, locate the "ospf-neighbor" activation, and ensure it is enabled and running. Click Validate again once it is running.' }}

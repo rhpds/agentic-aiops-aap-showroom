@@ -1,0 +1,123 @@
+---
+# Module 02 — Section 3: Splunk for Network Observability
+# Validation: Checks all four durable outcomes students must produce.
+- name: Section 3 - Splunk for Network Observability Validation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    student_user: "{{ user | default('') }}"
+    # ── Splunk ──────────────────────────────────────────────────────────────
+    splunk_tcp_port: "5514"
+    splunk_app: "cisco_ios"
+    splunk_alert_name: "ospf-neighbor"
+    # ── AAP job template ────────────────────────────────────────────────────
+    aap_job_template_name: "Network-Router-Setup"
+    # ── Cisco router creds (static in lab) ──────────────────────────────────
+    rtr_user: "admin"
+    rtr_password: "ansible123!"
+    rtr_host: "cisco-rtr1"
+
+  tasks:
+
+    # -------------------------------------------------------
+    # Check 1 — Splunk TCP data input on port 5514 exists with sourcetype=cisco:ios
+    # -------------------------------------------------------
+    - name: Check Splunk TCP input 5514 exists
+      ansible.builtin.uri:
+        url: "{{ splunk_url }}/servicesNS/nobody/{{ splunk_app }}/data/inputs/tcp/raw/{{ splunk_tcp_port }}"
+        method: GET
+        user: "{{ splunk_username }}"
+        password: "{{ splunk_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+        status_code: [200, 404]
+      register: r_tcp_input
+      ignore_errors: true
+
+    # -------------------------------------------------------
+    # Check 2 — AAP "Network-Router-Setup" job ran successfully at least once
+    # -------------------------------------------------------
+    - name: Check AAP Network-Router-Setup job has a successful run
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/jobs/?job_template__name={{ aap_job_template_name | urlencode }}&status=successful&page_size=1"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+        status_code: [200]
+      register: r_aap_job
+      ignore_errors: true
+
+    # -------------------------------------------------------
+    # Check 3 — Splunk saved alert "ospf-neighbor" exists with real-time schedule
+    # -------------------------------------------------------
+    - name: Check Splunk saved alert ospf-neighbor exists
+      ansible.builtin.uri:
+        url: "{{ splunk_url }}/servicesNS/nobody/{{ splunk_app }}/saved/searches/{{ splunk_alert_name }}?output_mode=json"
+        method: GET
+        user: "{{ splunk_username }}"
+        password: "{{ splunk_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+        status_code: [200, 404]
+      register: r_alert
+      ignore_errors: true
+
+    # -------------------------------------------------------
+    # Check 4 — OSPF adjacency is FULL on cisco-rtr1 (via bastion)
+    # -------------------------------------------------------
+    - name: Check OSPF neighbor state on cisco-rtr1
+      ansible.builtin.shell: |
+        sshpass -p '{{ rtr_password }}' \
+          ssh -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              {{ rtr_user }}@{{ rtr_host }} \
+          'show ip ospf neighbor'
+      delegate_to: bastion
+      register: r_ospf
+      ignore_errors: true
+      changed_when: false
+
+    # -------------------------------------------------------
+    # Build task result booleans
+    # -------------------------------------------------------
+    - name: Build task results
+      ansible.builtin.set_fact:
+        # Check 1: HTTP 200 from Splunk TCP input endpoint
+        _task1_ok: "{{ r_tcp_input.status | default(0) == 200 }}"
+
+        # Check 2: at least one successful job run returned by the filter query
+        _task2_ok: "{{ (r_aap_job.json.count | default(0) | int) >= 1 }}"
+
+        # Check 3: HTTP 200 from saved search endpoint AND body contains
+        #          realtime_schedule (present on real-time alert types)
+        _task3_ok: >-
+          {{ (r_alert.status | default(0) == 200) and
+             ('realtime_schedule' in (r_alert.content | default(''))) }}
+
+        # Check 4: sshpass command succeeded and stdout contains FULL
+        _task4_ok: >-
+          {{ (r_ospf is not failed) and
+             ('FULL' in (r_ospf.stdout | default(''))) }}
+
+    # -------------------------------------------------------
+    # Validate all tasks
+    # -------------------------------------------------------
+    - name: Validate all tasks
+      rhpds.ftl.validation_check:
+        check: "{{ _task1_ok and _task2_ok and _task3_ok and _task4_ok }}"
+        pass_msg: |
+          Task 1: Splunk TCP input on port 5514 exists (sourcetype=cisco:ios)
+          Task 2: AAP "Network-Router-Setup" job completed successfully
+          Task 3: Splunk saved alert "ospf-neighbor" exists with real-time schedule
+          Task 4: OSPF adjacency is FULL on cisco-rtr1 Tunnel0
+        error_msg: |
+          {{ '[PASS]' if _task1_ok else '[FAIL]' }} Task 1: Splunk TCP input port 5514 — {{ 'exists with sourcetype=cisco:ios' if _task1_ok else 'NOT found — open Splunk > Settings > Data Inputs > TCP and create input on port 5514 with sourcetype cisco:ios in the cisco_ios app' }}
+          {{ '[PASS]' if _task2_ok else '[FAIL]' }} Task 2: AAP Network-Router-Setup job — {{ 'at least one successful run found' if _task2_ok else 'no successful run found — go to AAP, locate the Network-Router-Setup template, and launch it; wait for it to finish successfully' }}
+          {{ '[PASS]' if _task3_ok else '[FAIL]' }} Task 3: Splunk saved alert "ospf-neighbor" — {{ 'exists with real-time schedule' if _task3_ok else 'NOT found or not real-time — open Splunk > Alerts and create an alert named ospf-neighbor with real-time schedule and a webhook action pointing to the EDA webhook URL' }}
+          {{ '[PASS]' if _task4_ok else '[FAIL]' }} Task 4: OSPF adjacency on cisco-rtr1 — {{ 'FULL state confirmed' if _task4_ok else 'not FULL — verify tunnel0 is not shut on cisco-rtr1; run: show ip ospf neighbor and confirm FULL appears, or click Solve to restore it' }}

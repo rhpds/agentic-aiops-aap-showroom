@@ -1,0 +1,147 @@
+---
+# Module 07 — Section 8: AI-Driven Incident Response with MCP
+# Validation checks durable outcomes only — no UI steps.
+#
+# Hosts topology:
+#   localhost  — API calls to AAP controller and EDA
+#   bastion    — SSH gateway; node1 is reached through bastion
+#
+- name: Module 07 Validation — AI-Driven Incident Response with MCP
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    student_user: "{{ user | default('') }}"
+    aap_user: "{{ controller_username | default('') }}"
+    aap_pass: "{{ controller_password | default('') }}"
+    aap_api: "{{ controller_url | default('') }}/api/v2"
+    eda_api: "{{ controller_url | default('') }}/api/eda/v1"
+
+  tasks:
+
+    # -------------------------------------------------------
+    # Check 1 — httpd.service is active on node1
+    # Reached through bastion via SSH; the runner cannot
+    # contact node1 directly.
+    # -------------------------------------------------------
+    - name: Check httpd.service status on node1 (via bastion)
+      ansible.builtin.command: >
+        sudo ssh -o StrictHostKeyChecking=no node1
+        sudo systemctl is-active httpd.service
+      delegate_to: bastion
+      changed_when: false
+      register: r_httpd
+      ignore_errors: true
+
+    # -------------------------------------------------------
+    # Check 2 — AAP job history: "Break Apache" ran successfully
+    # -------------------------------------------------------
+    - name: Check AAP job history for Break Apache (successful)
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/jobs/?name__icontains=Break+Apache&status=successful"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+        status_code: [200]
+      register: r_break_apache
+      ignore_errors: true
+
+    # -------------------------------------------------------
+    # Check 3 — AAP job history: "Restore Apache" ran successfully
+    # -------------------------------------------------------
+    - name: Check AAP job history for Restore Apache (successful)
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/jobs/?name__icontains=Restore+Apache&status=successful"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+        status_code: [200]
+      register: r_restore_apache
+      ignore_errors: true
+
+    # -------------------------------------------------------
+    # Check 4 — AAP job history: "AI Agent: Incident Response" succeeded
+    # EDA triggers this job; it may still be running on first
+    # check — tell the student to retry in a few minutes.
+    # -------------------------------------------------------
+    - name: Check AAP job history for AI Agent Incident Response (successful)
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/jobs/?name__icontains=AI+Agent&status=successful"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+        status_code: [200]
+      register: r_ai_agent_job
+      ignore_errors: true
+
+    # -------------------------------------------------------
+    # Check 5 — EDA final state: "Web App" activation is running
+    # -------------------------------------------------------
+    - name: Check EDA Web App activation status
+      ansible.builtin.uri:
+        url: "{{ eda_api }}/activations/?name=Web+App"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+        status_code: [200]
+      register: r_eda_webapp
+      ignore_errors: true
+
+    # -------------------------------------------------------
+    # Build boolean result facts
+    # -------------------------------------------------------
+    - name: Build task results
+      ansible.builtin.set_fact:
+        _task1_ok: "{{ r_httpd.stdout | default('') | trim == 'active' }}"
+        _task2_ok: >-
+          {{
+            r_break_apache is not failed and
+            (r_break_apache.json.count | default(0) | int) >= 1
+          }}
+        _task3_ok: >-
+          {{
+            r_restore_apache is not failed and
+            (r_restore_apache.json.count | default(0) | int) >= 1
+          }}
+        _task4_ok: >-
+          {{
+            r_ai_agent_job is not failed and
+            (r_ai_agent_job.json.count | default(0) | int) >= 1
+          }}
+        _task5_ok: >-
+          {{
+            r_eda_webapp is not failed and
+            (r_eda_webapp.json.results | default([]) | length > 0) and
+            r_eda_webapp.json.results[0].status | default('') == 'running'
+          }}
+
+    # -------------------------------------------------------
+    # Validate all tasks
+    # -------------------------------------------------------
+    - name: Validate all tasks
+      rhpds.ftl.validation_check:
+        check: "{{ _task1_ok and _task2_ok and _task3_ok and _task4_ok and _task5_ok }}"
+        pass_msg: |
+          Task 1: httpd.service is active on node1
+          Task 2: Break Apache job ran successfully in AAP
+          Task 3: Restore Apache job ran successfully in AAP
+          Task 4: AI Agent: Incident Response job completed successfully
+          Task 5: Web App EDA activation is running
+        error_msg: |
+          {{ 'Task 1: httpd.service is active on node1' if _task1_ok else 'Task 1: FAILED — httpd.service is not active on node1. Run Solve or re-run the incident agent on bastion and confirm the Restore Apache job completes.' }}
+          {{ 'Task 2: Break Apache job ran successfully in AAP' if _task2_ok else 'Task 2: FAILED — No successful Break Apache job found. Complete Challenge 2 (run incident_agent.py all --break-first) or Challenge 3 (launch Break Apache from AAP).' }}
+          {{ 'Task 3: Restore Apache job ran successfully in AAP' if _task3_ok else 'Task 3: FAILED — No successful Restore Apache job found. The incident agent must call the Restore Apache job template to heal the service.' }}
+          {{ 'Task 4: AI Agent: Incident Response job completed successfully' if _task4_ok else 'Task 4: FAILED — AI Agent: Incident Response job not yet successful. If the EDA pipeline is still running, wait 3-5 minutes and click Validate again.' }}
+          {{ 'Task 5: Web App EDA activation is running' if _task5_ok else 'Task 5: FAILED — Web App EDA activation is not running. Enable it from the EDA dashboard or run Solve to restore the final EDA state.' }}
