@@ -337,10 +337,10 @@
         password: "{{ aap_pass }}"
         force_basic_auth: true
         validate_certs: false
-        headers: "{{ _headers }}"
-        body_format: json
-        body:
-          id: "{{ node2_id | int }}"
+        body_format: raw
+        headers:
+          Content-Type: application/json
+        body: "{\"id\": {{ node2_id }}}"
         timeout: 30
         status_code: [200, 201, 204]
       when:
@@ -360,10 +360,10 @@
         password: "{{ aap_pass }}"
         force_basic_auth: true
         validate_certs: false
-        headers: "{{ _headers }}"
-        body_format: json
-        body:
-          id: "{{ node3_id | int }}"
+        body_format: raw
+        headers:
+          Content-Type: application/json
+        body: "{\"id\": {{ node3_id }}}"
         timeout: 30
         status_code: [200, 201, 204]
       when:
@@ -383,10 +383,10 @@
         password: "{{ aap_pass }}"
         force_basic_auth: true
         validate_certs: false
-        headers: "{{ _headers }}"
-        body_format: json
-        body:
-          id: "{{ node4_id | int }}"
+        body_format: raw
+        headers:
+          Content-Type: application/json
+        body: "{\"id\": {{ node4_id }}}"
         timeout: 30
         status_code: [200, 201, 204]
       when:
