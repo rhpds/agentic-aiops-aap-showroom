@@ -41,7 +41,7 @@
     # -------------------------------------------------------
     - name: Check AAP Network-Router-Setup job has a successful run
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/jobs/?job_template__name={{ aap_job_template_name | urlencode }}&status=successful&page_size=1"
+        url: "{{ controller_url }}/api/controller/v2/jobs/?job_template__name={{ aap_job_template_name | urlencode }}&status=successful&page_size=1"
         method: GET
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"

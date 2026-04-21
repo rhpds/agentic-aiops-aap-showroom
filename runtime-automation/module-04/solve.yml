@@ -48,7 +48,7 @@
 
     - name: "C1 | Poll AAP — wait for Network-AIOps-Workflow to start running"
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_jobs/?name={{ workflow_name | urlencode }}&status=running&order_by=-id"
+        url: "{{ controller_url }}/api/controller/v2/workflow_jobs/?name={{ workflow_name | urlencode }}&status=running&order_by=-id"
         method: GET
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"
@@ -69,7 +69,7 @@
 
     - name: "C1 | Poll AAP — wait for pending workflow approval"
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_approvals/?status=pending&order_by=-id"
+        url: "{{ controller_url }}/api/controller/v2/workflow_approvals/?status=pending&order_by=-id"
         method: GET
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"
@@ -90,7 +90,7 @@
 
     - name: "C1 | Approve the human review gate"
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_approvals/{{ c1_approval_id }}/approve/"
+        url: "{{ controller_url }}/api/controller/v2/workflow_approvals/{{ c1_approval_id }}/approve/"
         method: POST
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"
@@ -106,7 +106,7 @@
 
     - name: "C1 | Poll AAP — wait for workflow to complete (status=successful)"
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_jobs/{{ c1_workflow_job_id }}/"
+        url: "{{ controller_url }}/api/controller/v2/workflow_jobs/{{ c1_workflow_job_id }}/"
         method: GET
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"
@@ -178,7 +178,7 @@
 
     - name: "C2 | Poll AAP — wait for Network-AIOps-Workflow to start running"
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_jobs/?name={{ workflow_name | urlencode }}&status=running&order_by=-id"
+        url: "{{ controller_url }}/api/controller/v2/workflow_jobs/?name={{ workflow_name | urlencode }}&status=running&order_by=-id"
         method: GET
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"
@@ -201,7 +201,7 @@
 
     - name: "C2 | Poll AAP — wait for pending workflow approval"
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_approvals/?status=pending&order_by=-id"
+        url: "{{ controller_url }}/api/controller/v2/workflow_approvals/?status=pending&order_by=-id"
         method: GET
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"
@@ -222,7 +222,7 @@
 
     - name: "C2 | Approve the human review gate"
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_approvals/{{ c2_approval_id }}/approve/"
+        url: "{{ controller_url }}/api/controller/v2/workflow_approvals/{{ c2_approval_id }}/approve/"
         method: POST
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"
@@ -238,7 +238,7 @@
 
     - name: "C2 | Poll AAP — wait for workflow to complete (status=successful)"
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_jobs/{{ c2_workflow_job_id }}/"
+        url: "{{ controller_url }}/api/controller/v2/workflow_jobs/{{ c2_workflow_job_id }}/"
         method: GET
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"
@@ -323,7 +323,7 @@
 
     - name: "C3 | Poll AAP — wait for Network-AIOps-Workflow to start running"
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_jobs/?name={{ workflow_name | urlencode }}&status=running&order_by=-id"
+        url: "{{ controller_url }}/api/controller/v2/workflow_jobs/?name={{ workflow_name | urlencode }}&status=running&order_by=-id"
         method: GET
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"
@@ -352,7 +352,7 @@
 
     - name: "C3 | Poll AAP — wait for pending workflow approval"
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_approvals/?status=pending&order_by=-id"
+        url: "{{ controller_url }}/api/controller/v2/workflow_approvals/?status=pending&order_by=-id"
         method: GET
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"
@@ -373,7 +373,7 @@
 
     - name: "C3 | Approve the human review gate"
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_approvals/{{ c3_approval_id }}/approve/"
+        url: "{{ controller_url }}/api/controller/v2/workflow_approvals/{{ c3_approval_id }}/approve/"
         method: POST
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"
@@ -389,7 +389,7 @@
 
     - name: "C3 | Poll AAP — wait for workflow to complete (status=successful)"
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_jobs/{{ c3_workflow_job_id }}/"
+        url: "{{ controller_url }}/api/controller/v2/workflow_jobs/{{ c3_workflow_job_id }}/"
         method: GET
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"

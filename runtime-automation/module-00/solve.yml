@@ -36,7 +36,7 @@
     # ------------------------------------------------------------------
     - name: Get Default organization
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/organizations/?name=Default"
+        url: "{{ aap_url }}/api/controller/v2/organizations/?name=Default"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -59,7 +59,7 @@
     # ------------------------------------------------------------------
     - name: Check if WFJT already exists
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_job_templates/?name__icontains=AI+Insights+and+Lightspeed+prompt"
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_templates/?name__icontains=AI+Insights+and+Lightspeed+prompt"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -81,7 +81,7 @@
     # ------------------------------------------------------------------
     - name: Create WFJT "{{ wfjt_name }}"
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_job_templates/"
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_templates/"
         method: POST
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -113,7 +113,7 @@
     # ------------------------------------------------------------------
     - name: Lookup JT - Apache Service Status Check
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains={{ jt_apache_check | urlencode }}"
+        url: "{{ aap_url }}/api/controller/v2/job_templates/?name__icontains={{ jt_apache_check | urlencode }}"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -126,7 +126,7 @@
 
     - name: Lookup JT - RHEL AI Analyze Incident
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains=Analyze+Incident"
+        url: "{{ aap_url }}/api/controller/v2/job_templates/?name__icontains=Analyze+Incident"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -139,7 +139,7 @@
 
     - name: Lookup JT - Notify via Mattermost
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains=Notify+via+Mattermost"
+        url: "{{ aap_url }}/api/controller/v2/job_templates/?name__icontains=Notify+via+Mattermost"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -152,7 +152,7 @@
 
     - name: Lookup JT - Build Ansible Lightspeed Job Template
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains=Build+Ansible+Lightspeed"
+        url: "{{ aap_url }}/api/controller/v2/job_templates/?name__icontains=Build+Ansible+Lightspeed"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -180,7 +180,7 @@
     # ------------------------------------------------------------------
     - name: Check existing nodes for WFJT
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/?workflow_job_template={{ wfjt_id }}"
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_template_nodes/?workflow_job_template={{ wfjt_id }}"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -202,7 +202,7 @@
     # ------------------------------------------------------------------
     - name: Create workflow node 1 - Apache Service Status Check
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/"
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_template_nodes/"
         method: POST
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -235,7 +235,7 @@
     # ------------------------------------------------------------------
     - name: Create workflow node 2 - RHEL AI Analyze Incident
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/"
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_template_nodes/"
         method: POST
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -267,7 +267,7 @@
     # ------------------------------------------------------------------
     - name: Create workflow node 3 - Notify via Mattermost
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/"
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_template_nodes/"
         method: POST
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -299,7 +299,7 @@
     # ------------------------------------------------------------------
     - name: Create workflow node 4 - Build Ansible Lightspeed Job Template
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/"
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_template_nodes/"
         method: POST
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -331,7 +331,7 @@
     # ------------------------------------------------------------------
     - name: Link node 1 success to node 2
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/{{ node1_id }}/success_nodes/"
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_template_nodes/{{ node1_id }}/success_nodes/"
         method: POST
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -354,7 +354,7 @@
     # ------------------------------------------------------------------
     - name: Link node 2 success to node 3
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/{{ node2_id }}/success_nodes/"
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_template_nodes/{{ node2_id }}/success_nodes/"
         method: POST
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -377,7 +377,7 @@
     # ------------------------------------------------------------------
     - name: Link node 3 success to node 4
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/{{ node3_id }}/success_nodes/"
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_template_nodes/{{ node3_id }}/success_nodes/"
         method: POST
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -400,7 +400,7 @@
     # ------------------------------------------------------------------
     - name: Re-fetch existing nodes to confirm link state
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/?workflow_job_template={{ wfjt_id }}"
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_template_nodes/?workflow_job_template={{ wfjt_id }}"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -422,7 +422,7 @@
     # ------------------------------------------------------------------
     - name: Lookup Break Apache job template
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains=Break+Apache"
+        url: "{{ aap_url }}/api/controller/v2/job_templates/?name__icontains=Break+Apache"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -442,7 +442,7 @@
 
     - name: Launch Break Apache job template
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/job_templates/{{ break_apache_jt_id }}/launch/"
+        url: "{{ aap_url }}/api/controller/v2/job_templates/{{ break_apache_jt_id }}/launch/"
         method: POST
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -469,7 +469,7 @@
     # ------------------------------------------------------------------
     - name: Poll Break Apache job until complete
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/jobs/{{ break_job_id }}/"
+        url: "{{ aap_url }}/api/controller/v2/jobs/{{ break_job_id }}/"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -497,7 +497,7 @@
     # ------------------------------------------------------------------
     - name: Wait for EDA-triggered AI Insights workflow job to appear and complete
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_jobs/?name__icontains=AI+Insights&order_by=-id"
+        url: "{{ aap_url }}/api/controller/v2/workflow_jobs/?name__icontains=AI+Insights&order_by=-id"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -526,7 +526,7 @@
     # ------------------------------------------------------------------
     - name: Check Lightspeed Remediation Playbook Generator JT exists
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains=Lightspeed+Remediation+Playbook+Generator"
+        url: "{{ aap_url }}/api/controller/v2/job_templates/?name__icontains=Lightspeed+Remediation+Playbook+Generator"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -539,7 +539,7 @@
 
     - name: Check Remediation Workflow WFJT exists
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_job_templates/?name__icontains=Remediation+Workflow"
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_templates/?name__icontains=Remediation+Workflow"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"

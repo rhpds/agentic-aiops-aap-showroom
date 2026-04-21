@@ -22,7 +22,7 @@
     # -------------------------------------------------------
     - name: Check WFJT "AI Insights and Lightspeed prompt generation" exists
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_job_templates/?name__icontains=AI+Insights"
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_templates/?name__icontains=AI+Insights"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -45,7 +45,7 @@
     # -------------------------------------------------------
     - name: Check workflow nodes count for the WFJT
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/?workflow_job_template={{ wfjt_id }}"
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_template_nodes/?workflow_job_template={{ wfjt_id }}"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -62,7 +62,7 @@
     # -------------------------------------------------------
     - name: Check for a successful workflow job
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_jobs/?name__icontains=AI+Insights&status=successful"
+        url: "{{ aap_url }}/api/controller/v2/workflow_jobs/?name__icontains=AI+Insights&status=successful"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -78,7 +78,7 @@
     # -------------------------------------------------------
     - name: Check JT "Lightspeed Remediation Playbook Generator" exists
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains=Lightspeed+Remediation+Playbook+Generator"
+        url: "{{ aap_url }}/api/controller/v2/job_templates/?name__icontains=Lightspeed+Remediation+Playbook+Generator"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -94,7 +94,7 @@
     # -------------------------------------------------------
     - name: Check WFJT "Remediation Workflow" exists
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/workflow_job_templates/?name__icontains=Remediation+Workflow"
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_templates/?name__icontains=Remediation+Workflow"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"

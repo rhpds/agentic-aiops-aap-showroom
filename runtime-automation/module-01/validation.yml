@@ -20,7 +20,7 @@
     # -------------------------------------------------------
     - name: Query Remediation Workflow WFJT
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_job_templates/?name__icontains=Remediation+Workflow"
+        url: "{{ controller_url }}/api/controller/v2/workflow_job_templates/?name__icontains=Remediation+Workflow"
         method: GET
         url_username: "{{ controller_username }}"
         url_password: "{{ controller_password }}"
@@ -39,7 +39,7 @@
 
     - name: Query Remediation Workflow nodes
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_job_templates/{{ _wfjt_id }}/workflow_nodes/"
+        url: "{{ controller_url }}/api/controller/v2/workflow_job_templates/{{ _wfjt_id }}/workflow_nodes/"
         method: GET
         url_username: "{{ controller_username }}"
         url_password: "{{ controller_password }}"
@@ -55,7 +55,7 @@
     # -------------------------------------------------------
     - name: Query successful Remediation Workflow jobs
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_jobs/?name__icontains=Remediation+Workflow&status=successful"
+        url: "{{ controller_url }}/api/controller/v2/workflow_jobs/?name__icontains=Remediation+Workflow&status=successful"
         method: GET
         url_username: "{{ controller_username }}"
         url_password: "{{ controller_password }}"
@@ -70,7 +70,7 @@
     # -------------------------------------------------------
     - name: Query Execute HTTPD Remediation job template
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/job_templates/?name__icontains=Execute+HTTPD+Remediation"
+        url: "{{ controller_url }}/api/controller/v2/job_templates/?name__icontains=Execute+HTTPD+Remediation"
         method: GET
         url_username: "{{ controller_username }}"
         url_password: "{{ controller_password }}"
@@ -85,7 +85,7 @@
     # -------------------------------------------------------
     - name: Query successful Execute HTTPD Remediation jobs
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/jobs/?job_template__name__icontains=Execute+HTTPD+Remediation&status=successful"
+        url: "{{ controller_url }}/api/controller/v2/jobs/?job_template__name__icontains=Execute+HTTPD+Remediation&status=successful"
         method: GET
         url_username: "{{ controller_username }}"
         url_password: "{{ controller_password }}"

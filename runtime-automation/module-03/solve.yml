@@ -23,7 +23,7 @@
     # ------------------------------------------------------------------
     - name: Ping AAP controller
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/ping/"
+        url: "{{ aap_url }}/api/controller/v2/ping/"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"

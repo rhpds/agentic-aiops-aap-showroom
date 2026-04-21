@@ -5,7 +5,7 @@
 #
 # All REST calls go to localhost (vm-rhel: runner runs on bastion).
 # EDA API:  {{ controller_url }}/api/eda/v1/
-# AAP API:  {{ controller_url }}/api/v2/
+# AAP API:  {{ controller_url }}/api/controller/v2/
 #
 # Key extravars (injected by vm_workload_runtime_automation):
 #   controller_url, controller_username, controller_password
@@ -97,7 +97,7 @@
     # -- C1-2: Launch "Simulate AD Account Creation" job template -------- #
     - name: C1-2 | Look up Simulate AD Account Creation job template
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains=Simulate+AD+Account+Creation"
+        url: "{{ aap_url }}/api/controller/v2/job_templates/?name__icontains=Simulate+AD+Account+Creation"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -116,7 +116,7 @@
 
     - name: C1-2 | Launch Simulate AD Account Creation
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/job_templates/{{ jt_ad_id }}/launch/"
+        url: "{{ aap_url }}/api/controller/v2/job_templates/{{ jt_ad_id }}/launch/"
         method: POST
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -138,7 +138,7 @@
 
     - name: C1-2 | Poll until AD simulation job succeeds (timeout 120 s)
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/jobs/{{ ad_job_id }}/"
+        url: "{{ aap_url }}/api/controller/v2/jobs/{{ ad_job_id }}/"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -168,7 +168,7 @@
 
     - name: C1-3 | Poll for Windows Create Mattermost Ticket job (up to 60 s)
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/jobs/?name__icontains=Windows+Create+Mattermost+Ticket&order_by=-created&page_size=5"
+        url: "{{ aap_url }}/api/controller/v2/jobs/?name__icontains=Windows+Create+Mattermost+Ticket&order_by=-created&page_size=5"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -198,7 +198,7 @@
     # -- C2-1: Launch "Simulate Windows Firewall Toggle" job template --- #
     - name: C2-1 | Look up Simulate Windows Firewall Toggle job template
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains=Simulate+Windows+Firewall+Toggle"
+        url: "{{ aap_url }}/api/controller/v2/job_templates/?name__icontains=Simulate+Windows+Firewall+Toggle"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -217,7 +217,7 @@
 
     - name: C2-1 | Launch Simulate Windows Firewall Toggle
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/job_templates/{{ jt_fw_id }}/launch/"
+        url: "{{ aap_url }}/api/controller/v2/job_templates/{{ jt_fw_id }}/launch/"
         method: POST
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -239,7 +239,7 @@
 
     - name: C2-1 | Poll until firewall simulation job succeeds (timeout 120 s)
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/jobs/{{ fw_job_id }}/"
+        url: "{{ aap_url }}/api/controller/v2/jobs/{{ fw_job_id }}/"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -270,7 +270,7 @@
     - name: C2-2 | Poll for Windows AI Analyze and Ticket job (up to 4 min)
       # Granite LLM inference can take several minutes — allow 24 retries × 10 s = 240 s
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/jobs/?name__icontains=Windows+AI+Analyze+and+Ticket&order_by=-created&page_size=5"
+        url: "{{ aap_url }}/api/controller/v2/jobs/?name__icontains=Windows+AI+Analyze+and+Ticket&order_by=-created&page_size=5"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"

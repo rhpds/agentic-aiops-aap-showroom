@@ -69,7 +69,7 @@
     # -------------------------------------------------------
     - name: Query AAP for successful Network-AIOps-Workflow runs
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/workflow_jobs/?name={{ workflow_name | urlencode }}&status=successful&page_size=100"
+        url: "{{ controller_url }}/api/controller/v2/workflow_jobs/?name={{ workflow_name | urlencode }}&status=successful&page_size=100"
         method: GET
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"

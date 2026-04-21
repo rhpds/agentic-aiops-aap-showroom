@@ -30,7 +30,7 @@
     # -------------------------------------------------------
     - name: Query AAP for successful Simulate AD Account Creation jobs
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/jobs/?job_template__name__icontains=Simulate+AD+Account+Creation&status=successful&page_size=5"
+        url: "{{ aap_url }}/api/controller/v2/jobs/?job_template__name__icontains=Simulate+AD+Account+Creation&status=successful&page_size=5"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -47,7 +47,7 @@
     # -------------------------------------------------------
     - name: Query AAP for successful Windows Create Mattermost Ticket jobs
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/jobs/?name__icontains=Windows+Create+Mattermost+Ticket&status=successful&page_size=5"
+        url: "{{ aap_url }}/api/controller/v2/jobs/?name__icontains=Windows+Create+Mattermost+Ticket&status=successful&page_size=5"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -63,7 +63,7 @@
     # -------------------------------------------------------
     - name: Query AAP for successful Simulate Windows Firewall Toggle jobs
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/jobs/?job_template__name__icontains=Simulate+Windows+Firewall+Toggle&status=successful&page_size=5"
+        url: "{{ aap_url }}/api/controller/v2/jobs/?job_template__name__icontains=Simulate+Windows+Firewall+Toggle&status=successful&page_size=5"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -80,7 +80,7 @@
     # -------------------------------------------------------
     - name: Query AAP for successful Windows AI Analyze and Ticket jobs
       ansible.builtin.uri:
-        url: "{{ aap_url }}/api/v2/jobs/?name__icontains=Windows+AI+Analyze+and+Ticket&status=successful&page_size=5"
+        url: "{{ aap_url }}/api/controller/v2/jobs/?name__icontains=Windows+AI+Analyze+and+Ticket&status=successful&page_size=5"
         method: GET
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"

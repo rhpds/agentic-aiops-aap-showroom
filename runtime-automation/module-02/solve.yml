@@ -69,7 +69,7 @@
 
     - name: Look up AAP job template "Network-Router-Setup"
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/job_templates/?name={{ aap_job_template_name | urlencode }}"
+        url: "{{ controller_url }}/api/controller/v2/job_templates/?name={{ aap_job_template_name | urlencode }}"
         method: GET
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"
@@ -89,7 +89,7 @@
 
     - name: Launch "Network-Router-Setup" job template
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/job_templates/{{ jt_id }}/launch/"
+        url: "{{ controller_url }}/api/controller/v2/job_templates/{{ jt_id }}/launch/"
         method: POST
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"
@@ -112,7 +112,7 @@
 
     - name: Poll AAP job until finished (up to 5 minutes)
       ansible.builtin.uri:
-        url: "{{ controller_url }}/api/v2/jobs/{{ launched_job_id }}/"
+        url: "{{ controller_url }}/api/controller/v2/jobs/{{ launched_job_id }}/"
         method: GET
         user: "{{ controller_username }}"
         password: "{{ controller_password }}"
