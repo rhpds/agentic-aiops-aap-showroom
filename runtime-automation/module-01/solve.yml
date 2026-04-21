@@ -22,7 +22,7 @@
     aap_url: "{{ controller_url | default('') }}"
     aap_user: "{{ controller_username | default('admin') }}"
     aap_pass: "{{ controller_password | default('') }}"
-    aap_api: "{{ controller_url | default('') | regex_replace('/$', '') }}/api/v2"
+    aap_api: "{{ controller_url | default('') | regex_replace('/$', '') }}/api/controller/v2"
     # Prompt text sent as the survey answer
     remediation_prompt: >-
       For all hosts, use become true, Remove line that contains
@@ -236,9 +236,10 @@
         force_basic_auth: true
         validate_certs: false
         timeout: 30
-        body_format: json
-        body:
-          id: "{{ node2_id | int }}"
+        body_format: raw
+        headers:
+          Content-Type: application/json
+        body: "{\"id\": {{ node2_id }}}"
         status_code: [200, 201, 204]
       register: r_link12
       ignore_errors: true
@@ -284,9 +285,10 @@
         force_basic_auth: true
         validate_certs: false
         timeout: 30
-        body_format: json
-        body:
-          id: "{{ node3_id | int }}"
+        body_format: raw
+        headers:
+          Content-Type: application/json
+        body: "{\"id\": {{ node3_id }}}"
         status_code: [200, 201, 204]
       register: r_link23
       ignore_errors: true
@@ -332,9 +334,10 @@
         force_basic_auth: true
         validate_certs: false
         timeout: 30
-        body_format: json
-        body:
-          id: "{{ node4_id | int }}"
+        body_format: raw
+        headers:
+          Content-Type: application/json
+        body: "{\"id\": {{ node4_id }}}"
         status_code: [200, 201, 204]
       register: r_link34
       ignore_errors: true
@@ -549,7 +552,7 @@
     # =========================================================================
     # Step 14 — Verify httpd is active on node1 via SSH through bastion
     # =========================================================================
-    - name: Check httpd.service is active on node1 (via bastion SSH)
+    - name: Check httpd.service is active on node1 (via bastion ProxyJump)
       ansible.builtin.command:
         argv:
           - ssh
@@ -557,12 +560,13 @@
           - StrictHostKeyChecking=no
           - -o
           - BatchMode=yes
-          - node1
+          - -o
+          - ProxyJump=bastion
+          - cloud-user@node1
           - sudo
           - systemctl
           - is-active
           - httpd.service
-      delegate_to: bastion
       register: r_httpd
       changed_when: false
       ignore_errors: true

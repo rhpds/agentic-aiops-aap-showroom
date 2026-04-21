@@ -37,7 +37,6 @@
         shut
         end
         ENDSSH
-      delegate_to: bastion
       register: r_c1_break
       changed_when: true
       ignore_errors: true
@@ -128,7 +127,6 @@
           -o UserKnownHostsFile=/dev/null \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'show ip ospf neighbor'
-      delegate_to: bastion
       register: r_c1_ospf_verify
       changed_when: false
       ignore_errors: true
@@ -144,7 +142,6 @@
           -o UserKnownHostsFile=/dev/null \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'show ip ospf neighbor'
-      delegate_to: bastion
       register: r_c1_ospf_wait
       until: "'FULL' in r_c1_ospf_wait.stdout | default('')"
       retries: 12
@@ -167,7 +164,6 @@
         ip ospf network non-broadcast
         end
         ENDSSH
-      delegate_to: bastion
       register: r_c2_break
       changed_when: true
       ignore_errors: true
@@ -260,7 +256,6 @@
           -o UserKnownHostsFile=/dev/null \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'show ip ospf neighbor'
-      delegate_to: bastion
       register: r_c2_ospf_verify
       changed_when: false
       ignore_errors: true
@@ -272,7 +267,6 @@
           -o UserKnownHostsFile=/dev/null \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'sh ip ospf int tu0 | s Type'
-      delegate_to: bastion
       register: r_c2_ospf_type
       changed_when: false
       ignore_errors: true
@@ -289,7 +283,6 @@
           -o UserKnownHostsFile=/dev/null \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'show ip ospf neighbor'
-      delegate_to: bastion
       register: r_c2_ospf_wait
       until: "'FULL' in r_c2_ospf_wait.stdout | default('')"
       retries: 12
@@ -312,7 +305,6 @@
         ip ospf hello-interval 30
         end
         ENDSSH
-      delegate_to: bastion
       register: r_c3_break
       changed_when: true
       ignore_errors: true
@@ -411,7 +403,6 @@
           -o UserKnownHostsFile=/dev/null \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'show ip ospf neighbor'
-      delegate_to: bastion
       register: r_c3_ospf_verify
       changed_when: false
       ignore_errors: true
@@ -423,7 +414,6 @@
           -o UserKnownHostsFile=/dev/null \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'sh ip ospf int tu0 | s Hello'
-      delegate_to: bastion
       register: r_c3_ospf_hello
       changed_when: false
       ignore_errors: true

@@ -25,10 +25,20 @@
     # contact node1 directly.
     # -------------------------------------------------------
     - name: Check httpd.service status on node1 (via bastion)
-      ansible.builtin.command: >
-        sudo ssh -o StrictHostKeyChecking=no node1
-        sudo systemctl is-active httpd.service
-      delegate_to: bastion
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -o
+          - StrictHostKeyChecking=no
+          - -o
+          - BatchMode=yes
+          - -o
+          - ProxyJump=bastion
+          - cloud-user@node1
+          - sudo
+          - systemctl
+          - is-active
+          - httpd.service
       changed_when: false
       register: r_httpd
       ignore_errors: true

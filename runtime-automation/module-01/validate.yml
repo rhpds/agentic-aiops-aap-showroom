@@ -102,17 +102,19 @@
     - name: Check httpd.service status on node1 via bastion
       ansible.builtin.command:
         argv:
-          - sudo
           - ssh
           - -o
           - StrictHostKeyChecking=no
-          - node1
+          - -o
+          - BatchMode=yes
+          - -o
+          - ProxyJump=bastion
+          - cloud-user@node1
           - sudo
           - systemctl
           - is-active
           - httpd.service
       register: r_httpd_service
-      delegate_to: bastion
       ignore_errors: true
 
     # -------------------------------------------------------

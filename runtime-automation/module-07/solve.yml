@@ -113,39 +113,36 @@
 
     - name: "[C2-1] Run CrewAI incident agent pipeline (async, 5-min timeout)"
       ansible.builtin.shell: |
-        cd /home/lab-user/agentic-aiops
-        source /home/lab-user/.venv/bin/activate
-        python3 incident_agent.py all --break-first "Apache web server is down on node1"
-      async: 300
-      poll: 0
-      delegate_to: bastion
+        ssh -o StrictHostKeyChecking=no -o BatchMode=yes bastion           'cd /home/lab-user/agentic-aiops && source /home/lab-user/.venv/bin/activate && timeout 280 python3 incident_agent.py all --break-first "Apache web server is down on node1"' 2>&1
       register: r_agent_job
-      ignore_errors: true
-
-    - name: "[C2-1] Wait for incident agent to complete (poll every 15 s, max 5 min)"
-      ansible.builtin.async_status:
-        jid: "{{ r_agent_job.ansible_job_id }}"
-      delegate_to: bastion
-      register: r_agent_result
-      until: r_agent_result.finished
-      retries: 20
-      delay: 15
       ignore_errors: true
 
     - name: "[C2-1] Assert agent pipeline completed successfully"
       ansible.builtin.set_fact:
         c2_agent_ok: >-
           {{
-            r_agent_result.rc | default(1) == 0 and
+            r_agent_job.rc | default(1) == 0 and
             (
-              'REPORT' in (r_agent_result.stdout | default('')) or
-              'OUTCOME' in (r_agent_result.stdout | default(''))
+              'REPORT' in (r_agent_job.stdout | default('')) or
+              'OUTCOME' in (r_agent_job.stdout | default(''))
             )
           }}
 
     - name: "[C2-2] Verify httpd is active on node1 after agent remediation"
-      ansible.builtin.command: "sudo ssh -o StrictHostKeyChecking=no node1 sudo systemctl is-active httpd.service"
-      delegate_to: bastion
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -o
+          - StrictHostKeyChecking=no
+          - -o
+          - BatchMode=yes
+          - -o
+          - ProxyJump=bastion
+          - cloud-user@node1
+          - sudo
+          - systemctl
+          - is-active
+          - httpd.service
       register: r_httpd_c2
       changed_when: false
       ignore_errors: true
@@ -282,8 +279,20 @@
           }}
 
     - name: "[C3-4] Verify httpd is active on node1 after AI Agent remediation"
-      ansible.builtin.command: "sudo ssh -o StrictHostKeyChecking=no node1 sudo systemctl is-active httpd.service"
-      delegate_to: bastion
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -o
+          - StrictHostKeyChecking=no
+          - -o
+          - BatchMode=yes
+          - -o
+          - ProxyJump=bastion
+          - cloud-user@node1
+          - sudo
+          - systemctl
+          - is-active
+          - httpd.service
       register: r_httpd_c3
       changed_when: false
       ignore_errors: true

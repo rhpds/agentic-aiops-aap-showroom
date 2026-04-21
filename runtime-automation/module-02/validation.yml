@@ -78,7 +78,6 @@
               -o UserKnownHostsFile=/dev/null \
               {{ rtr_user }}@{{ rtr_host }} \
           'show ip ospf neighbor'
-      delegate_to: bastion
       register: r_ospf
       ignore_errors: true
       changed_when: false

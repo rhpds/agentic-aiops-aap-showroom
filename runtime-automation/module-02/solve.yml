@@ -151,7 +151,6 @@
         int tu 0
         shut
         end'
-      delegate_to: bastion
       register: r_tun_shut
       changed_when: true
       ignore_errors: true
@@ -223,7 +222,6 @@
         int tu 0
         no shut
         end'
-      delegate_to: bastion
       register: r_tun_restore
       changed_when: true
       ignore_errors: true

@@ -29,7 +29,6 @@
           -o UserKnownHostsFile=/dev/null \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'show ip ospf neighbor'
-      delegate_to: bastion
       register: r_ospf_neighbor
       changed_when: false
       ignore_errors: true
@@ -44,7 +43,6 @@
           -o UserKnownHostsFile=/dev/null \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'sh ip ospf int tu0 | s Type'
-      delegate_to: bastion
       register: r_ospf_type
       changed_when: false
       ignore_errors: true
@@ -59,7 +57,6 @@
           -o UserKnownHostsFile=/dev/null \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'sh ip ospf int tu0 | s Hello'
-      delegate_to: bastion
       register: r_ospf_hello
       changed_when: false
       ignore_errors: true
