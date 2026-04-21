@@ -1,0 +1,310 @@
+---
+# Module 06 - Windows Events and AI-Driven Ticketing
+# Solve: Triggers both Windows simulation job templates and waits for EDA to
+#         auto-launch the downstream ticketing jobs.
+#
+# All REST calls go to localhost (vm-rhel: runner runs on bastion).
+# EDA API:  {{ controller_url }}/api/eda/v1/
+# AAP API:  {{ controller_url }}/api/v2/
+#
+# Key extravars (injected by vm_workload_runtime_automation):
+#   controller_url, controller_username, controller_password
+
+- name: Module 06 - Windows Events and AI-Driven Ticketing Solve
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    aap_user: "{{ controller_username | default('admin') }}"
+    aap_pass: "{{ controller_password | default('') }}"
+    aap_url:  "{{ controller_url | default('https://localhost') }}"
+    # Seconds to wait after simulation job succeeds before polling for EDA jobs
+    eda_settle_delay: 30
+    # Timestamp anchor — set once, used to filter jobs created after solve started
+    solve_start_time: "{{ ansible_date_time.iso8601 | default('') }}"
+
+  tasks:
+
+    # ------------------------------------------------------------------ #
+    #  Record solve start time so job-age comparisons are reliable        #
+    # ------------------------------------------------------------------ #
+    - name: Capture solve start timestamp
+      ansible.builtin.set_fact:
+        solve_epoch: "{{ (ansible_date_time.epoch | int) }}"
+
+    # ================================================================== #
+    #  CHALLENGE 1 — AD Account Creation Event                           #
+    # ================================================================== #
+
+    # -- C1-1: Verify "Windows Events" EDA activation is Running -------- #
+    - name: C1-1 | Get Windows Events EDA activation status
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/eda/v1/activations/?name=Windows+Events"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_eda_activation
+      ignore_errors: true
+
+    - name: C1-1 | Set EDA activation facts
+      ansible.builtin.set_fact:
+        eda_activation_id: >-
+          {{ (r_eda_activation.json.results | default([]) | first | default({})).id | default('') }}
+        eda_activation_status: >-
+          {{ (r_eda_activation.json.results | default([]) | first | default({})).status | default('unknown') }}
+      ignore_errors: true
+
+    - name: C1-1 | Enable Windows Events activation if not running
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/eda/v1/activations/{{ eda_activation_id }}/enable/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200, 201, 202, 204]
+      when:
+        - eda_activation_id | string | length > 0
+        - eda_activation_status | lower != 'running'
+      register: r_eda_enable
+      ignore_errors: true
+
+    - name: C1-1 | Wait for EDA activation to reach Running state
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/eda/v1/activations/?name=Windows+Events"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_eda_check
+      until: >-
+        (r_eda_check.json.results | default([]) | first | default({})).status | default('') | lower == 'running'
+      retries: 12
+      delay: 5
+      when:
+        - eda_activation_id | string | length > 0
+        - eda_activation_status | lower != 'running'
+      ignore_errors: true
+
+    # -- C1-2: Launch "Simulate AD Account Creation" job template -------- #
+    - name: C1-2 | Look up Simulate AD Account Creation job template
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains=Simulate+AD+Account+Creation"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_jt_ad
+      ignore_errors: true
+
+    - name: C1-2 | Set AD simulation job template ID
+      ansible.builtin.set_fact:
+        jt_ad_id: >-
+          {{ (r_jt_ad.json.results | default([]) | first | default({})).id | default('') }}
+      ignore_errors: true
+
+    - name: C1-2 | Launch Simulate AD Account Creation
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/job_templates/{{ jt_ad_id }}/launch/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        body_format: json
+        body: {}
+        status_code: [200, 201, 202]
+      register: r_ad_launch
+      when: jt_ad_id | string | length > 0
+      ignore_errors: true
+
+    - name: C1-2 | Set AD simulation job ID
+      ansible.builtin.set_fact:
+        ad_job_id: "{{ r_ad_launch.json.id | default('') }}"
+      when: r_ad_launch is not skipped
+      ignore_errors: true
+
+    - name: C1-2 | Poll until AD simulation job succeeds (timeout 120 s)
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/jobs/{{ ad_job_id }}/"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_ad_job_status
+      until: r_ad_job_status.json.status | default('') in ['successful', 'failed', 'error', 'canceled']
+      retries: 24
+      delay: 5
+      when: ad_job_id | string | length > 0
+      ignore_errors: true
+
+    - name: C1-2 | Record AD simulation job finish epoch
+      ansible.builtin.set_fact:
+        ad_job_finished: true
+        ad_job_ok: "{{ r_ad_job_status.json.status | default('') == 'successful' }}"
+      when: r_ad_job_status is not skipped
+      ignore_errors: true
+
+    # -- C1-3: Wait for EDA to fire "Windows: Create Mattermost Ticket" - #
+    - name: C1-3 | Wait {{ eda_settle_delay }}s for EDA to detect AD event
+      ansible.builtin.pause:
+        seconds: "{{ eda_settle_delay }}"
+      when: ad_job_finished | default(false) | bool
+
+    - name: C1-3 | Poll for Windows Create Mattermost Ticket job (up to 60 s)
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/jobs/?name__icontains=Windows+Create+Mattermost+Ticket&order_by=-created&page_size=5"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_mattermost_ticket_job
+      until: >-
+        (r_mattermost_ticket_job.json.results | default([])
+          | selectattr('status', 'equalto', 'successful') | list | length) > 0
+      retries: 12
+      delay: 5
+      ignore_errors: true
+
+    - name: C1-3 | Set Mattermost ticket job status fact
+      ansible.builtin.set_fact:
+        mattermost_ticket_ok: >-
+          {{ (r_mattermost_ticket_job.json.results | default([])
+              | selectattr('status', 'equalto', 'successful') | list | length) > 0 }}
+      ignore_errors: true
+
+    # ================================================================== #
+    #  CHALLENGE 2 — Firewall Event with AI Enrichment                   #
+    # ================================================================== #
+
+    # -- C2-1: Launch "Simulate Windows Firewall Toggle" job template --- #
+    - name: C2-1 | Look up Simulate Windows Firewall Toggle job template
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains=Simulate+Windows+Firewall+Toggle"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_jt_fw
+      ignore_errors: true
+
+    - name: C2-1 | Set firewall simulation job template ID
+      ansible.builtin.set_fact:
+        jt_fw_id: >-
+          {{ (r_jt_fw.json.results | default([]) | first | default({})).id | default('') }}
+      ignore_errors: true
+
+    - name: C2-1 | Launch Simulate Windows Firewall Toggle
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/job_templates/{{ jt_fw_id }}/launch/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        body_format: json
+        body: {}
+        status_code: [200, 201, 202]
+      register: r_fw_launch
+      when: jt_fw_id | string | length > 0
+      ignore_errors: true
+
+    - name: C2-1 | Set firewall simulation job ID
+      ansible.builtin.set_fact:
+        fw_job_id: "{{ r_fw_launch.json.id | default('') }}"
+      when: r_fw_launch is not skipped
+      ignore_errors: true
+
+    - name: C2-1 | Poll until firewall simulation job succeeds (timeout 120 s)
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/jobs/{{ fw_job_id }}/"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_fw_job_status
+      until: r_fw_job_status.json.status | default('') in ['successful', 'failed', 'error', 'canceled']
+      retries: 24
+      delay: 5
+      when: fw_job_id | string | length > 0
+      ignore_errors: true
+
+    - name: C2-1 | Record firewall simulation job finish epoch
+      ansible.builtin.set_fact:
+        fw_job_finished: true
+        fw_job_ok: "{{ r_fw_job_status.json.status | default('') == 'successful' }}"
+      when: r_fw_job_status is not skipped
+      ignore_errors: true
+
+    # -- C2-2: Wait for EDA to fire "Windows AI: Analyze and Ticket" --- #
+    - name: C2-2 | Wait {{ eda_settle_delay }}s for EDA to detect firewall event
+      ansible.builtin.pause:
+        seconds: "{{ eda_settle_delay }}"
+      when: fw_job_finished | default(false) | bool
+
+    - name: C2-2 | Poll for Windows AI Analyze and Ticket job (up to 4 min)
+      # Granite LLM inference can take several minutes — allow 24 retries × 10 s = 240 s
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/jobs/?name__icontains=Windows+AI+Analyze+and+Ticket&order_by=-created&page_size=5"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_ai_ticket_job
+      until: >-
+        (r_ai_ticket_job.json.results | default([])
+          | selectattr('status', 'equalto', 'successful') | list | length) > 0
+      retries: 24
+      delay: 10
+      ignore_errors: true
+
+    - name: C2-2 | Set AI ticket job status fact
+      ansible.builtin.set_fact:
+        ai_ticket_ok: >-
+          {{ (r_ai_ticket_job.json.results | default([])
+              | selectattr('status', 'equalto', 'successful') | list | length) > 0 }}
+      ignore_errors: true
+
+    # ================================================================== #
+    #  Final Report                                                       #
+    # ================================================================== #
+    - name: Report solve status
+      ansible.builtin.debug:
+        msg: |
+          === Module 06 Solve Report ===
+
+          Challenge 1 — AD Account Creation Event
+            Simulate AD Account Creation job:   {{ 'ok' if (ad_job_ok | default(false) | bool) else 'NOT ok' }}
+            Windows Create Mattermost Ticket:   {{ 'ok' if (mattermost_ticket_ok | default(false) | bool) else 'NOT ok (EDA may still be processing — run validate in ~60 s)' }}
+
+          Challenge 2 — Firewall Event with AI Enrichment
+            Simulate Windows Firewall Toggle job: {{ 'ok' if (fw_job_ok | default(false) | bool) else 'NOT ok' }}
+            Windows AI Analyze and Ticket job:   {{ 'ok' if (ai_ticket_ok | default(false) | bool) else 'NOT ok (Granite LLM may still be running — run validate in ~5 min)' }}

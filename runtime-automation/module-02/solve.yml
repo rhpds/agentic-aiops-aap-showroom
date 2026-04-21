@@ -1,9 +1,246 @@
 ---
-# Module 02 solve stub
-- name: Solve module-02
+# Module 02 — Section 3: Splunk for Network Observability
+# Solve: Creates Splunk TCP input, runs AAP job, generates OSPF DOWN event,
+#        creates Splunk saved alert with EDA webhook, restores tunnel0.
+- name: Section 3 - Splunk for Network Observability Solve
   hosts: localhost
+  connection: local
   gather_facts: false
+  vars:
+    # ── Splunk ──────────────────────────────────────────────────────────────
+    splunk_tcp_port: "5514"
+    splunk_app: "cisco_ios"
+    splunk_sourcetype: "cisco:ios"
+    splunk_index: "default"
+    splunk_alert_name: "ospf-neighbor"
+    # ── AAP job template ────────────────────────────────────────────────────
+    aap_job_template_name: "Network-Router-Setup"
+    aap_poll_retries: 30        # 30 x 10 s = 5 min
+    aap_poll_delay: 10
+    # ── Cisco router creds (static in lab) ──────────────────────────────────
+    rtr_user: "admin"
+    rtr_password: "ansible123!"
+    rtr_host: "cisco-rtr1"
+
   tasks:
-    - name: Stub - solve for module-02 not yet implemented
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # TASK 1 — Create Splunk TCP data input on port 5514
+    # ══════════════════════════════════════════════════════════════════════════
+
+    - name: Check if Splunk TCP input 5514 already exists
+      ansible.builtin.uri:
+        url: "{{ splunk_url }}/servicesNS/nobody/{{ splunk_app }}/data/inputs/tcp/raw/{{ splunk_tcp_port }}"
+        method: GET
+        user: "{{ splunk_username }}"
+        password: "{{ splunk_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [200, 404]
+      register: r_tcp_check
+      ignore_errors: true
+
+    - name: Create Splunk TCP data input on port 5514 (skip if exists)
+      ansible.builtin.uri:
+        url: "{{ splunk_url }}/servicesNS/nobody/{{ splunk_app }}/data/inputs/tcp/raw"
+        method: POST
+        user: "{{ splunk_username }}"
+        password: "{{ splunk_password }}"
+        force_basic_auth: true
+        body: "name={{ splunk_tcp_port }}&sourcetype=cisco%3Aios&index={{ splunk_index }}&connection_host=ip"
+        headers:
+          Content-Type: "application/x-www-form-urlencoded"
+        validate_certs: false
+        timeout: 30
+        status_code: [200, 201]
+      register: r_tcp_create
+      when: r_tcp_check.status | default(404) != 200
+      ignore_errors: true
+
+    - name: Record TCP input result
+      ansible.builtin.set_fact:
+        tcp_input_ok: >-
+          {{ (r_tcp_check.status | default(404) == 200) or
+             (r_tcp_create.status | default(0) in [200, 201]) }}
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # TASK 2 — Run "Network-Router-Setup" AAP job template
+    # ══════════════════════════════════════════════════════════════════════════
+
+    - name: Look up AAP job template "Network-Router-Setup"
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/job_templates/?name={{ aap_job_template_name | urlencode }}"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_jt_lookup
+      ignore_errors: true
+
+    - name: Set job template ID
+      ansible.builtin.set_fact:
+        jt_id: "{{ r_jt_lookup.json.results[0].id }}"
+      when:
+        - r_jt_lookup.json is defined
+        - r_jt_lookup.json.results | default([]) | length > 0
+
+    - name: Launch "Network-Router-Setup" job template
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/job_templates/{{ jt_id }}/launch/"
+        method: POST
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        body_format: json
+        body: {}
+        validate_certs: false
+        timeout: 30
+        status_code: [201]
+      register: r_jt_launch
+      when: jt_id is defined
+      ignore_errors: true
+
+    - name: Set launched job ID
+      ansible.builtin.set_fact:
+        launched_job_id: "{{ r_jt_launch.json.id }}"
+      when:
+        - r_jt_launch.json is defined
+        - r_jt_launch.json.id is defined
+
+    - name: Poll AAP job until finished (up to 5 minutes)
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/jobs/{{ launched_job_id }}/"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_job_status
+      until: r_job_status.json.status | default('') in ['successful', 'failed', 'error', 'canceled']
+      retries: "{{ aap_poll_retries }}"
+      delay: "{{ aap_poll_delay }}"
+      when: launched_job_id is defined
+      ignore_errors: true
+
+    - name: Record AAP job result
+      ansible.builtin.set_fact:
+        aap_job_ok: "{{ r_job_status.json.status | default('') == 'successful' }}"
+      when: r_job_status is defined and r_job_status.json is defined
+
+    - name: Record AAP job skipped (template not found)
+      ansible.builtin.set_fact:
+        aap_job_ok: false
+      when: jt_id is not defined
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # TASK 3 — SSH to bastion → cisco-rtr1: shut tunnel0 (generate OSPF DOWN)
+    # ══════════════════════════════════════════════════════════════════════════
+
+    - name: Shut tunnel0 on cisco-rtr1 to generate OSPF DOWN syslog event
+      ansible.builtin.shell: |
+        sshpass -p '{{ rtr_password }}' \
+          ssh -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              {{ rtr_user }}@{{ rtr_host }} \
+          'config t
+        int tu 0
+        shut
+        end'
+      delegate_to: bastion
+      register: r_tun_shut
+      changed_when: true
+      ignore_errors: true
+
+    - name: Wait 15 seconds for OSPF DOWN syslog to reach Splunk
+      ansible.builtin.pause:
+        seconds: 15
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # TASK 4 — Create Splunk saved alert "ospf-neighbor"
+    # ══════════════════════════════════════════════════════════════════════════
+
+    - name: Check if Splunk saved alert "ospf-neighbor" already exists
+      ansible.builtin.uri:
+        url: "{{ splunk_url }}/servicesNS/nobody/{{ splunk_app }}/saved/searches/{{ splunk_alert_name }}"
+        method: GET
+        user: "{{ splunk_username }}"
+        password: "{{ splunk_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [200, 404]
+      register: r_alert_check
+      ignore_errors: true
+
+    - name: Create Splunk saved alert "ospf-neighbor" (skip if exists)
+      ansible.builtin.uri:
+        url: "{{ splunk_url }}/servicesNS/nobody/{{ splunk_app }}/saved/searches"
+        method: POST
+        user: "{{ splunk_username }}"
+        password: "{{ splunk_password }}"
+        force_basic_auth: true
+        body: >-
+          name={{ splunk_alert_name
+          }}&search=%25OSPF-5-ADJCHG%25%3A+Process+1%2C+Nbr+192.168.2.2+on+Tunnel0+from+FULL+to+DOWN
+          &is_scheduled=1
+          &alert_type=always
+          &alert.track=1
+          &dispatch.earliest_time=rt
+          &dispatch.latest_time=rt
+          &realtime_schedule=1
+          &actions=webhook%2Cadd_to_triggered_alerts
+          &action.webhook.param.url={{ eda_webhook_url | urlencode }}
+        headers:
+          Content-Type: "application/x-www-form-urlencoded"
+        validate_certs: false
+        timeout: 30
+        status_code: [200, 201]
+      register: r_alert_create
+      when: r_alert_check.status | default(404) != 200
+      ignore_errors: true
+
+    - name: Record saved alert result
+      ansible.builtin.set_fact:
+        splunk_alert_ok: >-
+          {{ (r_alert_check.status | default(404) == 200) or
+             (r_alert_create.status | default(0) in [200, 201]) }}
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # TASK 5 — Restore tunnel0 on cisco-rtr1 (no shut) so OSPF returns FULL
+    # ══════════════════════════════════════════════════════════════════════════
+
+    - name: Restore tunnel0 on cisco-rtr1 (no shut)
+      ansible.builtin.shell: |
+        sshpass -p '{{ rtr_password }}' \
+          ssh -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              {{ rtr_user }}@{{ rtr_host }} \
+          'config t
+        int tu 0
+        no shut
+        end'
+      delegate_to: bastion
+      register: r_tun_restore
+      changed_when: true
+      ignore_errors: true
+
+    - name: Wait 30 seconds for OSPF to reconverge to FULL
+      ansible.builtin.pause:
+        seconds: 30
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # Report
+    # ══════════════════════════════════════════════════════════════════════════
+
+    - name: Report solve status
       ansible.builtin.debug:
-        msg: "Module 02 solve stub — implement when grading is needed"
+        msg: |
+          Splunk TCP input 5514 (cisco:ios): {{ 'ok' if tcp_input_ok | default(false) else 'NOT ok' }}
+          AAP "Network-Router-Setup" job:    {{ 'ok' if aap_job_ok | default(false) else 'NOT ok' }}
+          Splunk saved alert "ospf-neighbor": {{ 'ok' if splunk_alert_ok | default(false) else 'NOT ok' }}
+          OSPF tunnel0 shut (DOWN event):    {{ 'ok' if r_tun_shut is not failed else 'NOT ok' }}
+          OSPF tunnel0 restored (FULL):      {{ 'ok' if r_tun_restore is not failed else 'NOT ok' }}

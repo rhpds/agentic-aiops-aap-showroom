@@ -1,10 +1,586 @@
 ---
-# Module 01 - Remediation Workflow
-# Solve: Builds the Remediation Workflow in AAP and executes it
-- name: Solve module-01
+# Module 01 Solve — Remediation Workflow
+#
+# What this playbook does:
+#   1. Finds the "Remediation Workflow" WFJT (created blank by module-00)
+#   2. Adds 4 nodes to the WFJT (idempotent — skips if nodes already present):
+#        Node 1 (root) : Job Template "Lightspeed Remediation Playbook Generator"
+#        Node 2        : Job Template "Commit Fix to Gitea"          (success of Node 1)
+#        Node 3        : Project Sync "Lightspeed-Playbooks"         (success of Node 2)
+#        Node 4        : Job Template "Build HTTPD Remediation Template" (success of Node 3)
+#   3. Fetches the survey spec from the WFJT to discover the dynamic variable name
+#   4. Launches "Remediation Workflow" with the survey prompt → polls until successful
+#   5. Waits for "Execute HTTPD Remediation" JT to appear (created dynamically by Node 4)
+#   6. Launches "Execute HTTPD Remediation" with limit=node1 → polls until successful
+#   7. Verifies httpd is active on node1 via SSH through bastion
+
+- name: Module 01 Solve — Remediation Workflow
   hosts: localhost
+  connection: local
   gather_facts: false
+  vars:
+    aap_url: "{{ controller_url | default('') }}"
+    aap_user: "{{ controller_username | default('admin') }}"
+    aap_pass: "{{ controller_password | default('') }}"
+    aap_api: "{{ controller_url | default('') | regex_replace('/$', '') }}/api/v2"
+    # Prompt text sent as the survey answer
+    remediation_prompt: >-
+      For all hosts, use become true, Remove line that contains
+      InvalidDirectiveHere from /etc/httpd/conf/httpd.conf and restart httpd
+
   tasks:
-    - name: Stub - solve for module-01 not yet implemented
+
+    # =========================================================================
+    # Step 1 — Find "Remediation Workflow" WFJT
+    # =========================================================================
+    - name: Look up "Remediation Workflow" WFJT by name
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/workflow_job_templates/?name__icontains=Remediation+Workflow"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_wfjt
+      ignore_errors: true
+
+    - name: Fail with clear message when WFJT not found
+      ansible.builtin.fail:
+        msg: >
+          "Remediation Workflow" WFJT not found via AAP API.
+          Module-00 must complete successfully before running this solver.
+          Check: {{ aap_api }}/workflow_job_templates/?name__icontains=Remediation+Workflow
+      when: r_wfjt.json.count | default(0) | int == 0
+
+    - name: Set WFJT ID fact
+      ansible.builtin.set_fact:
+        wfjt_id: "{{ (r_wfjt.json.results | first).id }}"
+        wfjt_name: "{{ (r_wfjt.json.results | first).name }}"
+
+    - name: Show WFJT found
       ansible.builtin.debug:
-        msg: "Module 01 solve stub — implement when grading is needed"
+        msg: "Found WFJT '{{ wfjt_name }}' with id={{ wfjt_id }}"
+
+    # =========================================================================
+    # Step 2 — Idempotency check — count existing nodes on this WFJT
+    # =========================================================================
+    - name: List existing workflow nodes on "Remediation Workflow"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/workflow_job_templates/{{ wfjt_id }}/workflow_nodes/"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_existing_nodes
+      ignore_errors: true
+
+    - name: Set existing node count fact
+      ansible.builtin.set_fact:
+        existing_node_count: "{{ r_existing_nodes.json.count | default(0) | int }}"
+
+    - name: Show existing node count
+      ansible.builtin.debug:
+        msg: "Workflow already has {{ existing_node_count }} node(s) — will skip node creation if >= 4"
+
+    # =========================================================================
+    # Step 3 — Discover unified_job_template IDs for each node
+    #           (only when we need to add nodes)
+    # =========================================================================
+    - name: Look up Job Template "Lightspeed Remediation Playbook Generator"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/job_templates/?name__icontains=Lightspeed+Remediation+Playbook+Generator"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_jt_lightspeed
+      ignore_errors: true
+      when: existing_node_count | int < 4
+
+    - name: Look up Job Template "Commit Fix to Gitea"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/job_templates/?name__icontains=Commit+Fix+to+Gitea"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_jt_commit
+      ignore_errors: true
+      when: existing_node_count | int < 4
+
+    - name: Look up Project "Lightspeed-Playbooks"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/projects/?name=Lightspeed-Playbooks"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_project_lightspeed
+      ignore_errors: true
+      when: existing_node_count | int < 4
+
+    - name: Look up Job Template "Build HTTPD Remediation Template"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/job_templates/?name__icontains=Build+HTTPD+Remediation+Template"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_jt_build
+      ignore_errors: true
+      when: existing_node_count | int < 4
+
+    # Collect IDs — fail fast if any prerequisite JT/Project is missing
+    - name: Set unified_job_template ID facts
+      ansible.builtin.set_fact:
+        ujt_lightspeed: "{{ (r_jt_lightspeed.json.results | default([]) | first).id | default('') }}"
+        ujt_commit: "{{ (r_jt_commit.json.results | default([]) | first).id | default('') }}"
+        ujt_project_sync: "{{ (r_project_lightspeed.json.results | default([]) | first).id | default('') }}"
+        ujt_build: "{{ (r_jt_build.json.results | default([]) | first).id | default('') }}"
+      when: existing_node_count | int < 4
+
+    - name: Validate all required templates were found
+      ansible.builtin.assert:
+        that:
+          - ujt_lightspeed | string | length > 0
+          - ujt_commit | string | length > 0
+          - ujt_project_sync | string | length > 0
+          - ujt_build | string | length > 0
+        fail_msg: >
+          One or more required job templates / projects were not found in AAP.
+          lightspeed={{ ujt_lightspeed }} commit={{ ujt_commit }}
+          project={{ ujt_project_sync }} build={{ ujt_build }}
+        success_msg: "All 4 required templates/projects found"
+      when: existing_node_count | int < 4
+
+    # =========================================================================
+    # Step 4 — Add Node 1: "Lightspeed Remediation Playbook Generator" (root)
+    # =========================================================================
+    - name: "Add Node 1 — Lightspeed Remediation Playbook Generator (root)"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/workflow_job_template_nodes/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        body_format: json
+        body:
+          workflow_job_template: "{{ wfjt_id | int }}"
+          unified_job_template: "{{ ujt_lightspeed | int }}"
+          convergence: "any"
+        status_code: [200, 201]
+      register: r_node1
+      ignore_errors: true
+      when: existing_node_count | int < 4
+
+    - name: Set Node 1 ID fact
+      ansible.builtin.set_fact:
+        node1_id: "{{ r_node1.json.id }}"
+      when:
+        - existing_node_count | int < 4
+        - r_node1.status | default(0) in [200, 201]
+
+    # =========================================================================
+    # Step 5 — Add Node 2: "Commit Fix to Gitea" (success of Node 1)
+    # =========================================================================
+    - name: "Add Node 2 — Commit Fix to Gitea"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/workflow_job_template_nodes/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        body_format: json
+        body:
+          workflow_job_template: "{{ wfjt_id | int }}"
+          unified_job_template: "{{ ujt_commit | int }}"
+        status_code: [200, 201]
+      register: r_node2
+      ignore_errors: true
+      when: existing_node_count | int < 4
+
+    - name: Set Node 2 ID fact
+      ansible.builtin.set_fact:
+        node2_id: "{{ r_node2.json.id }}"
+      when:
+        - existing_node_count | int < 4
+        - r_node2.status | default(0) in [200, 201]
+
+    - name: "Link Node 1 → Node 2 (success edge)"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/workflow_job_template_nodes/{{ node1_id }}/success_nodes/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        body_format: json
+        body:
+          id: "{{ node2_id | int }}"
+        status_code: [200, 201, 204]
+      register: r_link12
+      ignore_errors: true
+      when:
+        - existing_node_count | int < 4
+        - node1_id is defined
+        - node2_id is defined
+
+    # =========================================================================
+    # Step 6 — Add Node 3: Project Sync "Lightspeed-Playbooks" (success of Node 2)
+    # =========================================================================
+    - name: "Add Node 3 — Project Sync Lightspeed-Playbooks"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/workflow_job_template_nodes/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        body_format: json
+        body:
+          workflow_job_template: "{{ wfjt_id | int }}"
+          unified_job_template: "{{ ujt_project_sync | int }}"
+        status_code: [200, 201]
+      register: r_node3
+      ignore_errors: true
+      when: existing_node_count | int < 4
+
+    - name: Set Node 3 ID fact
+      ansible.builtin.set_fact:
+        node3_id: "{{ r_node3.json.id }}"
+      when:
+        - existing_node_count | int < 4
+        - r_node3.status | default(0) in [200, 201]
+
+    - name: "Link Node 2 → Node 3 (success edge)"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/workflow_job_template_nodes/{{ node2_id }}/success_nodes/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        body_format: json
+        body:
+          id: "{{ node3_id | int }}"
+        status_code: [200, 201, 204]
+      register: r_link23
+      ignore_errors: true
+      when:
+        - existing_node_count | int < 4
+        - node2_id is defined
+        - node3_id is defined
+
+    # =========================================================================
+    # Step 7 — Add Node 4: "Build HTTPD Remediation Template" (success of Node 3)
+    # =========================================================================
+    - name: "Add Node 4 — Build HTTPD Remediation Template"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/workflow_job_template_nodes/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        body_format: json
+        body:
+          workflow_job_template: "{{ wfjt_id | int }}"
+          unified_job_template: "{{ ujt_build | int }}"
+        status_code: [200, 201]
+      register: r_node4
+      ignore_errors: true
+      when: existing_node_count | int < 4
+
+    - name: Set Node 4 ID fact
+      ansible.builtin.set_fact:
+        node4_id: "{{ r_node4.json.id }}"
+      when:
+        - existing_node_count | int < 4
+        - r_node4.status | default(0) in [200, 201]
+
+    - name: "Link Node 3 → Node 4 (success edge)"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/workflow_job_template_nodes/{{ node3_id }}/success_nodes/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        body_format: json
+        body:
+          id: "{{ node4_id | int }}"
+        status_code: [200, 201, 204]
+      register: r_link34
+      ignore_errors: true
+      when:
+        - existing_node_count | int < 4
+        - node3_id is defined
+        - node4_id is defined
+
+    - name: Show node creation summary
+      ansible.builtin.debug:
+        msg: >-
+          {{
+            'Nodes already present — skipped creation (existing_node_count=' ~ existing_node_count ~ ')'
+            if existing_node_count | int >= 4
+            else
+            'Created nodes: 1=' ~ (node1_id | default('FAILED')) ~
+            ' 2=' ~ (node2_id | default('FAILED')) ~
+            ' 3=' ~ (node3_id | default('FAILED')) ~
+            ' 4=' ~ (node4_id | default('FAILED'))
+          }}
+
+    # =========================================================================
+    # Step 8 — Fetch survey spec to discover the dynamic variable name
+    # =========================================================================
+    - name: Fetch survey spec from "Remediation Workflow" WFJT
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/workflow_job_templates/{{ wfjt_id }}/survey_spec/"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_survey
+      ignore_errors: true
+
+    - name: Extract survey variable name from spec
+      ansible.builtin.set_fact:
+        survey_var: "{{ (r_survey.json.spec | default([]) | first).variable | default('prompt') }}"
+
+    - name: Show survey variable name
+      ansible.builtin.debug:
+        msg: "Survey variable name: '{{ survey_var }}'"
+
+    # =========================================================================
+    # Step 9 — Launch "Remediation Workflow" with survey answer
+    # =========================================================================
+    - name: "Launch Remediation Workflow WFJT with survey answer"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/workflow_job_templates/{{ wfjt_id }}/launch/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 60
+        body_format: json
+        body:
+          extra_vars: "{{ {survey_var: remediation_prompt} }}"
+        status_code: [200, 201]
+      register: r_wf_launch
+      ignore_errors: true
+
+    - name: Fail if WFJT launch was rejected
+      ansible.builtin.fail:
+        msg: >
+          Failed to launch "Remediation Workflow". HTTP {{ r_wf_launch.status | default('N/A') }}.
+          Response: {{ r_wf_launch.json | default({}) | to_json }}
+      when: r_wf_launch.status | default(0) not in [200, 201]
+
+    - name: Set workflow job ID fact
+      ansible.builtin.set_fact:
+        wf_job_id: "{{ r_wf_launch.json.id }}"
+
+    - name: Show workflow job launched
+      ansible.builtin.debug:
+        msg: "Launched workflow job id={{ wf_job_id }} — polling for completion (timeout 5 min)"
+
+    # =========================================================================
+    # Step 10 — Poll "Remediation Workflow" job until successful (5 min max)
+    # =========================================================================
+    - name: Poll Remediation Workflow job until successful
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/workflow_jobs/{{ wf_job_id }}/"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_wf_poll
+      until: r_wf_poll.json.status | default('pending') in ['successful', 'failed', 'error', 'canceled']
+      retries: 30
+      delay: 10
+      ignore_errors: true
+
+    - name: Set workflow job status fact
+      ansible.builtin.set_fact:
+        wf_job_status: "{{ r_wf_poll.json.status | default('unknown') }}"
+
+    - name: Show workflow job final status
+      ansible.builtin.debug:
+        msg: "Remediation Workflow job {{ wf_job_id }} finished with status: {{ wf_job_status }}"
+
+    - name: Warn if workflow did not succeed
+      ansible.builtin.debug:
+        msg: >
+          WARNING: Remediation Workflow completed with status '{{ wf_job_status }}' (not successful).
+          The dynamically-created 'Execute HTTPD Remediation' JT may not appear.
+          Check AAP for detailed error output.
+      when: wf_job_status != 'successful'
+
+    # =========================================================================
+    # Step 11 — Wait for "Execute HTTPD Remediation" JT to appear
+    #            (created dynamically by Node 4 after workflow completes)
+    # =========================================================================
+    - name: Wait up to 3 minutes for "Execute HTTPD Remediation" JT to appear
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/job_templates/?name__icontains=Execute+HTTPD+Remediation"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_exec_jt
+      until: r_exec_jt.json.count | default(0) | int > 0
+      retries: 18
+      delay: 10
+      ignore_errors: true
+
+    - name: Set Execute HTTPD Remediation JT ID fact
+      ansible.builtin.set_fact:
+        exec_jt_id: "{{ (r_exec_jt.json.results | default([]) | first).id | default('') }}"
+
+    - name: Fail if Execute HTTPD Remediation JT never appeared
+      ansible.builtin.fail:
+        msg: >
+          "Execute HTTPD Remediation" Job Template was not found after 3 minutes.
+          Workflow status was: {{ wf_job_status }}.
+          Check that Node 4 ("Build HTTPD Remediation Template") ran and succeeded.
+      when: exec_jt_id | string | length == 0
+
+    - name: Show Execute HTTPD Remediation JT ID
+      ansible.builtin.debug:
+        msg: "Found 'Execute HTTPD Remediation' JT with id={{ exec_jt_id }}"
+
+    # =========================================================================
+    # Step 12 — Launch "Execute HTTPD Remediation" with limit=node1
+    # =========================================================================
+    - name: "Launch Execute HTTPD Remediation JT with limit=node1"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/job_templates/{{ exec_jt_id }}/launch/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 60
+        body_format: json
+        body:
+          limit: "node1"
+        status_code: [200, 201]
+      register: r_exec_launch
+      ignore_errors: true
+
+    - name: Fail if Execute HTTPD Remediation launch was rejected
+      ansible.builtin.fail:
+        msg: >
+          Failed to launch "Execute HTTPD Remediation". HTTP {{ r_exec_launch.status | default('N/A') }}.
+          Response: {{ r_exec_launch.json | default({}) | to_json }}
+      when: r_exec_launch.status | default(0) not in [200, 201]
+
+    - name: Set Execute HTTPD Remediation job ID fact
+      ansible.builtin.set_fact:
+        exec_job_id: "{{ r_exec_launch.json.job }}"
+
+    - name: Show Execute HTTPD Remediation job launched
+      ansible.builtin.debug:
+        msg: "Launched 'Execute HTTPD Remediation' job id={{ exec_job_id }} — polling (timeout 5 min)"
+
+    # =========================================================================
+    # Step 13 — Poll "Execute HTTPD Remediation" job until successful
+    # =========================================================================
+    - name: Poll Execute HTTPD Remediation job until successful
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/jobs/{{ exec_job_id }}/"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_exec_poll
+      until: r_exec_poll.json.status | default('pending') in ['successful', 'failed', 'error', 'canceled']
+      retries: 30
+      delay: 10
+      ignore_errors: true
+
+    - name: Set Execute HTTPD Remediation job status fact
+      ansible.builtin.set_fact:
+        exec_job_status: "{{ r_exec_poll.json.status | default('unknown') }}"
+
+    - name: Show Execute HTTPD Remediation job final status
+      ansible.builtin.debug:
+        msg: "'Execute HTTPD Remediation' job {{ exec_job_id }} finished with status: {{ exec_job_status }}"
+
+    # =========================================================================
+    # Step 14 — Verify httpd is active on node1 via SSH through bastion
+    # =========================================================================
+    - name: Check httpd.service is active on node1 (via bastion SSH)
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -o
+          - StrictHostKeyChecking=no
+          - -o
+          - BatchMode=yes
+          - node1
+          - sudo
+          - systemctl
+          - is-active
+          - httpd.service
+      delegate_to: bastion
+      register: r_httpd
+      changed_when: false
+      ignore_errors: true
+
+    - name: Set httpd active fact
+      ansible.builtin.set_fact:
+        _httpd_active: "{{ (r_httpd.stdout | default('') | trim) == 'active' }}"
+
+    # =========================================================================
+    # Report
+    # =========================================================================
+    - name: Report solve status
+      ansible.builtin.debug:
+        msg: |
+          Remediation Workflow WFJT found (id={{ wfjt_id }}):         ok
+          Workflow nodes present (>= 4):                              {{ 'ok' if existing_node_count | int >= 4 or (node4_id is defined) else 'NOT ok' }}
+          Survey variable name discovered:                            {{ survey_var }}
+          Remediation Workflow job (id={{ wf_job_id }}) status:       {{ wf_job_status }}
+          Execute HTTPD Remediation JT found (id={{ exec_jt_id }}):   ok
+          Execute HTTPD Remediation job (id={{ exec_job_id }}) status: {{ exec_job_status }}
+          httpd.service active on node1:                              {{ 'ok' if _httpd_active else 'NOT ok — check AAP job output for remediation errors' }}

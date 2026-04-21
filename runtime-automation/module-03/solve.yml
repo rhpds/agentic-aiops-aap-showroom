@@ -1,0 +1,176 @@
+---
+# Module 03 — Section 4: Event Driven Ansible
+# Solve: Ensures the "ospf-neighbor" EDA rulebook activation is in Running state.
+# This is a verification-only module. The activation is pre-configured during lab
+# provisioning. If it is already Running this playbook is a no-op. If it exists
+# but is disabled/stopped it will be re-enabled and polled until Running.
+- name: Module 03 - EDA ospf-neighbor Activation Solve
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    # Injected by FTL runtime — no defaults needed in production
+    aap_url: "{{ controller_url | default('') }}"
+    aap_user: "{{ controller_username | default('') }}"
+    aap_pass: "{{ controller_password | default('') }}"
+    eda_api_base: "{{ aap_url }}/api/eda/v1"
+    activation_name: "ospf-neighbor"
+
+  tasks:
+
+    # ------------------------------------------------------------------
+    # 1. Smoke-test: confirm AAP controller is reachable
+    # ------------------------------------------------------------------
+    - name: Ping AAP controller
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/ping/"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 15
+        status_code: [200]
+      register: r_ping
+      ignore_errors: true
+
+    - name: Report controller reachability
+      ansible.builtin.debug:
+        msg: "AAP controller ping: {{ 'OK' if r_ping.status | default(0) == 200 else 'UNREACHABLE — check controller_url / credentials' }}"
+
+    # ------------------------------------------------------------------
+    # 2. Query EDA API for the activation by exact name
+    # ------------------------------------------------------------------
+    - name: Query EDA activation by name (exact match)
+      ansible.builtin.uri:
+        url: "{{ eda_api_base }}/activations/?name={{ activation_name }}"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 20
+        status_code: [200]
+      register: r_exact
+      ignore_errors: true
+
+    # ------------------------------------------------------------------
+    # 3. Fall back to a broader search if exact query returned 0 results
+    # ------------------------------------------------------------------
+    - name: Broader EDA search (name__icontains=ospf) when exact returns nothing
+      ansible.builtin.uri:
+        url: "{{ eda_api_base }}/activations/?name__icontains=ospf"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 20
+        status_code: [200]
+      register: r_broad
+      when:
+        - r_exact.status | default(0) == 200
+        - (r_exact.json.count | default(0)) == 0
+      ignore_errors: true
+
+    # ------------------------------------------------------------------
+    # 4. Determine which result set to use and extract activation details
+    # ------------------------------------------------------------------
+    - name: Set activation result list fact
+      ansible.builtin.set_fact:
+        _activation_results: >-
+          {{
+            r_exact.json.results
+            if (r_exact.json.count | default(0)) > 0
+            else (r_broad.json.results | default([]))
+          }}
+
+    - name: Set activation facts when found
+      ansible.builtin.set_fact:
+        _activation_id: "{{ (_activation_results | first).id }}"
+        _activation_status: "{{ (_activation_results | first).status | lower }}"
+        _activation_enabled: "{{ (_activation_results | first).is_enabled | default(false) }}"
+      when: (_activation_results | length) > 0
+
+    - name: Warn when activation not found at all
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: No EDA activation matching "ospf-neighbor" (or containing "ospf") was found.
+          Lab provisioning may not have completed. Manual intervention required.
+      when: (_activation_results | default([]) | length) == 0
+
+    # ------------------------------------------------------------------
+    # 5. If activation is found and NOT running — re-enable it
+    # ------------------------------------------------------------------
+    - name: Re-enable activation when it is disabled or stopped
+      ansible.builtin.uri:
+        url: "{{ eda_api_base }}/activations/{{ _activation_id }}/"
+        method: PATCH
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 20
+        body_format: json
+        body:
+          is_enabled: true
+        status_code: [200, 202]
+      register: r_enable
+      when:
+        - _activation_id is defined
+        - _activation_status | default('') != 'running'
+      ignore_errors: true
+
+    # ------------------------------------------------------------------
+    # 6. Poll until status == running (max ~90 s, 9 retries × 10 s delay)
+    # ------------------------------------------------------------------
+    - name: Poll activation until status is running
+      ansible.builtin.uri:
+        url: "{{ eda_api_base }}/activations/{{ _activation_id }}/"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 15
+        status_code: [200]
+      register: r_poll
+      until: (r_poll.json.status | default('') | lower) == 'running'
+      retries: 9
+      delay: 10
+      when:
+        - _activation_id is defined
+        - _activation_status | default('') != 'running'
+      ignore_errors: true
+
+    # ------------------------------------------------------------------
+    # 7. Final status check (re-read for both the no-op and re-enable paths)
+    # ------------------------------------------------------------------
+    - name: Re-read activation status for final report
+      ansible.builtin.uri:
+        url: "{{ eda_api_base }}/activations/{{ _activation_id }}/"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 15
+        status_code: [200]
+      register: r_final
+      when: _activation_id is defined
+      ignore_errors: true
+
+    - name: Set final status fact
+      ansible.builtin.set_fact:
+        _final_status: "{{ r_final.json.status | default('unknown') | lower }}"
+      when: _activation_id is defined
+
+    # ------------------------------------------------------------------
+    # 8. Report
+    # ------------------------------------------------------------------
+    - name: Report solve status
+      ansible.builtin.debug:
+        msg: |
+          AAP controller reachable : {{ 'ok' if r_ping.status | default(0) == 200 else 'NOT ok' }}
+          ospf-neighbor activation : {{ 'ok — status=' + _final_status if _activation_id is defined else 'NOT FOUND — lab provisioning incomplete' }}
+          {{ '' if (_final_status | default('')) == 'running' else 'NOTE: activation status is ' + (_final_status | default('not found')) + '. If it does not reach Running within 2 minutes, re-run solve.' }}

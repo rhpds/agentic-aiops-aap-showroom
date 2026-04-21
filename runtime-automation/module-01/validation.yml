@@ -1,10 +1,149 @@
 ---
-# Module 01 - Remediation Workflow
-# Validation: Checks that httpd is running on node1 after remediation
-- name: Validate module-01
+- name: Module 01 — Remediation Workflow Validation
   hosts: localhost
+  connection: local
   gather_facts: false
+  vars:
+    student_user: "{{ user | default('') }}"
+    controller_url: "{{ controller_url }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    _auth:
+      user: "{{ controller_username }}"
+      password: "{{ controller_password }}"
+      force_basic_auth: true
+
   tasks:
-    - name: Stub - validation for module-01 not yet implemented
-      ansible.builtin.debug:
-        msg: "Module 01 validation stub — implement validation_check tasks here"
+
+    # -------------------------------------------------------
+    # Check 1 — "Remediation Workflow" WFJT exists in AAP
+    # -------------------------------------------------------
+    - name: Query Remediation Workflow WFJT
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/workflow_job_templates/?name__icontains=Remediation+Workflow"
+        method: GET
+        url_username: "{{ controller_username }}"
+        url_password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+      register: r_wfjt
+      ignore_errors: true
+
+    # -------------------------------------------------------
+    # Check 2 — WFJT has exactly 4 nodes (only if WFJT found)
+    # -------------------------------------------------------
+    - name: Extract WFJT id
+      ansible.builtin.set_fact:
+        _wfjt_id: "{{ (r_wfjt.json.results | default([]) | map(attribute='id') | list | first) | default('') }}"
+
+    - name: Query Remediation Workflow nodes
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/workflow_job_templates/{{ _wfjt_id }}/workflow_nodes/"
+        method: GET
+        url_username: "{{ controller_username }}"
+        url_password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+      register: r_nodes
+      when: _wfjt_id | length > 0
+      ignore_errors: true
+
+    # -------------------------------------------------------
+    # Check 3 — A Remediation Workflow job completed successfully
+    # -------------------------------------------------------
+    - name: Query successful Remediation Workflow jobs
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/workflow_jobs/?name__icontains=Remediation+Workflow&status=successful"
+        method: GET
+        url_username: "{{ controller_username }}"
+        url_password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+      register: r_wf_jobs
+      ignore_errors: true
+
+    # -------------------------------------------------------
+    # Check 4 — "Execute HTTPD Remediation" job template exists
+    # -------------------------------------------------------
+    - name: Query Execute HTTPD Remediation job template
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/job_templates/?name__icontains=Execute+HTTPD+Remediation"
+        method: GET
+        url_username: "{{ controller_username }}"
+        url_password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+      register: r_jt
+      ignore_errors: true
+
+    # -------------------------------------------------------
+    # Check 5 — "Execute HTTPD Remediation" ran successfully
+    # -------------------------------------------------------
+    - name: Query successful Execute HTTPD Remediation jobs
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/jobs/?job_template__name__icontains=Execute+HTTPD+Remediation&status=successful"
+        method: GET
+        url_username: "{{ controller_username }}"
+        url_password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+      register: r_httpd_jobs
+      ignore_errors: true
+
+    # -------------------------------------------------------
+    # Check 6 — httpd.service is active/running on node1
+    #           Must be checked via bastion (delegate_to)
+    # -------------------------------------------------------
+    - name: Check httpd.service status on node1 via bastion
+      ansible.builtin.command:
+        argv:
+          - sudo
+          - ssh
+          - -o
+          - StrictHostKeyChecking=no
+          - node1
+          - sudo
+          - systemctl
+          - is-active
+          - httpd.service
+      register: r_httpd_service
+      delegate_to: bastion
+      ignore_errors: true
+
+    # -------------------------------------------------------
+    # Build task results
+    # -------------------------------------------------------
+    - name: Build task results
+      ansible.builtin.set_fact:
+        _task1_ok: "{{ (r_wfjt.json.count | default(0) | int) >= 1 }}"
+        _task2_ok: "{{ (r_nodes.json.count | default(0) | int) == 4 }}"
+        _task3_ok: "{{ (r_wf_jobs.json.count | default(0) | int) >= 1 }}"
+        _task4_ok: "{{ (r_jt.json.count | default(0) | int) >= 1 }}"
+        _task5_ok: "{{ (r_httpd_jobs.json.count | default(0) | int) >= 1 }}"
+        _task6_ok: "{{ (r_httpd_service.stdout | default('') | trim) == 'active' }}"
+
+    # -------------------------------------------------------
+    # Validate all tasks
+    # -------------------------------------------------------
+    - name: Validate all tasks
+      rhpds.ftl.validation_check:
+        check: "{{ _task1_ok and _task2_ok and _task3_ok and _task4_ok and _task5_ok and _task6_ok }}"
+        pass_msg: |
+          Task 1: "Remediation Workflow" WFJT exists in AAP
+          Task 2: "Remediation Workflow" has exactly 4 nodes configured
+          Task 3: "Remediation Workflow" completed successfully
+          Task 4: "Execute HTTPD Remediation" job template exists
+          Task 5: "Execute HTTPD Remediation" ran successfully against node1
+          Task 6: httpd.service is active and running on node1
+        error_msg: |
+          {{ '[PASS]' if _task1_ok else '[FAIL]' }} Task 1: "Remediation Workflow" WFJT {{ 'found in AAP' if _task1_ok else 'not found — create the Workflow Job Template in AAP Controller' }}
+          {{ '[PASS]' if _task2_ok else '[FAIL]' }} Task 2: Workflow nodes {{ '4 nodes configured' if _task2_ok else 'expected 4 nodes but found ' + (r_nodes.json.count | default(0) | string) + ' — add all 4 nodes to the workflow' }}
+          {{ '[PASS]' if _task3_ok else '[FAIL]' }} Task 3: Workflow job {{ 'completed successfully' if _task3_ok else 'has no successful runs — launch the Remediation Workflow and wait for it to complete' }}
+          {{ '[PASS]' if _task4_ok else '[FAIL]' }} Task 4: "Execute HTTPD Remediation" job template {{ 'exists' if _task4_ok else 'not found — the workflow must create this template dynamically; re-run the workflow' }}
+          {{ '[PASS]' if _task5_ok else '[FAIL]' }} Task 5: "Execute HTTPD Remediation" job {{ 'ran successfully' if _task5_ok else 'has no successful runs — check the job template and re-launch the workflow' }}
+          {{ '[PASS]' if _task6_ok else '[FAIL]' }} Task 6: httpd.service on node1 {{ 'is active' if _task6_ok else 'is NOT active (got: ' + (r_httpd_service.stdout | default('unknown') | trim) + ') — run the Execute HTTPD Remediation job or manually start httpd on node1' }}

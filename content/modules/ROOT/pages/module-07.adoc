@@ -676,6 +676,14 @@ This is the pattern for enterprise AI-driven operations: AI handles the non-dete
 
 The automation orchestrator will make this integration native: visual workflow design, unified audit trails, and seamless human-in-the-loop gates, turning the creative engineering you saw today into governed, enterprise-ready simplicity.
 
+++++
+<div class="solve-button-placeholder" data-module="module-07"></div>
+++++
+
+++++
+<div class="validate-button-placeholder" data-module="module-07"></div>
+++++
+
 == Complete
 
 Three takeaways from this module:

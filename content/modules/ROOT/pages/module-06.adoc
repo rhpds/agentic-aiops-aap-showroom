@@ -166,6 +166,14 @@ The **Windows Events** rulebook (`windows_events.yml`) uses the following rules:
 *Ansible Rulebook:*
 https://github.com/ansible-tmm/aiops-summitlab/blob/main/rulebooks/windows_events.yml[GitHub link^]
 
+++++
+<div class="solve-button-placeholder" data-module="module-06"></div>
+++++
+
+++++
+<div class="validate-button-placeholder" data-module="module-06"></div>
+++++
+
 == Next steps
 
 You have completed Section 6. Continue to the next section to explore additional automation scenarios.

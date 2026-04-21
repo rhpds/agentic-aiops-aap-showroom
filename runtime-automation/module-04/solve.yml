@@ -1,0 +1,457 @@
+---
+# Module 04 - Section 5: Network Workflow (3 OSPF Challenges)
+# Solve: Breaks OSPF on cisco-rtr1 three times, waits for EDA to trigger
+# Network-AIOps-Workflow in AAP, approves the human gate, and verifies recovery.
+#
+# All SSH to cisco-rtr1 is delegated to the bastion host.
+# AAP API calls run from localhost (the runner container).
+
+- name: Module 04 - Network Workflow OSPF Challenges Solve
+  hosts: localhost
+  gather_facts: false
+  vars:
+    cisco_rtr_host: cisco-rtr1
+    cisco_rtr_user: admin
+    cisco_rtr_pass: ansible123!
+    workflow_name: Network-AIOps-Workflow
+    # AAP polling settings
+    aap_poll_retries: 18
+    aap_poll_delay: 10
+    aap_workflow_timeout_retries: 36   # up to 6 minutes for workflow completion
+    aap_workflow_timeout_delay: 10
+
+  tasks:
+
+    # =========================================================================
+    # CHALLENGE 1 — Interface Shut (tunnel0 shutdown)
+    # =========================================================================
+
+    - name: "C1 | Break OSPF — shut tunnel0 on cisco-rtr1"
+      ansible.builtin.shell: |
+        sshpass -p '{{ cisco_rtr_pass }}' ssh \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          {{ cisco_rtr_user }}@{{ cisco_rtr_host }} << 'ENDSSH'
+        config t
+        int tu 0
+        shut
+        end
+        ENDSSH
+      delegate_to: bastion
+      register: r_c1_break
+      changed_when: true
+      ignore_errors: true
+
+    - name: "C1 | Wait 30s for EDA to detect OSPF DOWN event via Splunk webhook"
+      ansible.builtin.pause:
+        seconds: 30
+
+    - name: "C1 | Poll AAP — wait for Network-AIOps-Workflow to start running"
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/workflow_jobs/?name={{ workflow_name | urlencode }}&status=running&order_by=-id"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_c1_wf_running
+      until: r_c1_wf_running.json.count | default(0) | int > 0
+      retries: "{{ aap_poll_retries }}"
+      delay: "{{ aap_poll_delay }}"
+      ignore_errors: true
+
+    - name: "C1 | Set workflow job ID"
+      ansible.builtin.set_fact:
+        c1_workflow_job_id: "{{ r_c1_wf_running.json.results[0].id }}"
+      when: r_c1_wf_running.json.count | default(0) | int > 0
+
+    - name: "C1 | Poll AAP — wait for pending workflow approval"
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/workflow_approvals/?status=pending&order_by=-id"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_c1_approval
+      until: r_c1_approval.json.count | default(0) | int > 0
+      retries: "{{ aap_poll_retries }}"
+      delay: "{{ aap_poll_delay }}"
+      ignore_errors: true
+
+    - name: "C1 | Set pending approval ID"
+      ansible.builtin.set_fact:
+        c1_approval_id: "{{ r_c1_approval.json.results[0].id }}"
+      when: r_c1_approval.json.count | default(0) | int > 0
+
+    - name: "C1 | Approve the human review gate"
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/workflow_approvals/{{ c1_approval_id }}/approve/"
+        method: POST
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        body_format: json
+        body: {}
+        status_code: [200, 201, 204]
+      register: r_c1_approved
+      when: c1_approval_id is defined
+      ignore_errors: true
+
+    - name: "C1 | Poll AAP — wait for workflow to complete (status=successful)"
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/workflow_jobs/{{ c1_workflow_job_id }}/"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_c1_wf_done
+      until: r_c1_wf_done.json.status | default('') == 'successful'
+      retries: "{{ aap_workflow_timeout_retries }}"
+      delay: "{{ aap_workflow_timeout_delay }}"
+      when: c1_workflow_job_id is defined
+      ignore_errors: true
+
+    - name: "C1 | Verify OSPF adjacency is FULL after remediation"
+      ansible.builtin.shell: |
+        sshpass -p '{{ cisco_rtr_pass }}' ssh \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
+          'show ip ospf neighbor'
+      delegate_to: bastion
+      register: r_c1_ospf_verify
+      changed_when: false
+      ignore_errors: true
+
+    - name: "C1 | Set OSPF FULL fact"
+      ansible.builtin.set_fact:
+        c1_ospf_full: "{{ 'FULL' in r_c1_ospf_verify.stdout | default('') }}"
+
+    - name: "C1 | Wait for OSPF FULL before starting Challenge 2"
+      ansible.builtin.shell: |
+        sshpass -p '{{ cisco_rtr_pass }}' ssh \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
+          'show ip ospf neighbor'
+      delegate_to: bastion
+      register: r_c1_ospf_wait
+      until: "'FULL' in r_c1_ospf_wait.stdout | default('')"
+      retries: 12
+      delay: 10
+      changed_when: false
+      ignore_errors: true
+
+    # =========================================================================
+    # CHALLENGE 2 — OSPF Network Type Mismatch (non-broadcast on tunnel0)
+    # =========================================================================
+
+    - name: "C2 | Break OSPF — set ip ospf network non-broadcast on tunnel0"
+      ansible.builtin.shell: |
+        sshpass -p '{{ cisco_rtr_pass }}' ssh \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          {{ cisco_rtr_user }}@{{ cisco_rtr_host }} << 'ENDSSH'
+        config t
+        int tu 0
+        ip ospf network non-broadcast
+        end
+        ENDSSH
+      delegate_to: bastion
+      register: r_c2_break
+      changed_when: true
+      ignore_errors: true
+
+    - name: "C2 | Wait 60s for OSPF dead timer to expire and neighbor to drop"
+      ansible.builtin.pause:
+        seconds: 60
+
+    - name: "C2 | Poll AAP — wait for Network-AIOps-Workflow to start running"
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/workflow_jobs/?name={{ workflow_name | urlencode }}&status=running&order_by=-id"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_c2_wf_running
+      until: >
+        (r_c2_wf_running.json.results | default([]) | selectattr('id', 'ne', c1_workflow_job_id | default(0) | int) | list | length) > 0
+      retries: "{{ aap_poll_retries }}"
+      delay: "{{ aap_poll_delay }}"
+      ignore_errors: true
+
+    - name: "C2 | Set workflow job ID"
+      ansible.builtin.set_fact:
+        c2_workflow_job_id: "{{ (r_c2_wf_running.json.results | selectattr('id', 'ne', c1_workflow_job_id | default(0) | int) | list | first).id }}"
+      when: >
+        (r_c2_wf_running.json.results | default([]) | selectattr('id', 'ne', c1_workflow_job_id | default(0) | int) | list | length) > 0
+
+    - name: "C2 | Poll AAP — wait for pending workflow approval"
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/workflow_approvals/?status=pending&order_by=-id"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_c2_approval
+      until: r_c2_approval.json.count | default(0) | int > 0
+      retries: "{{ aap_poll_retries }}"
+      delay: "{{ aap_poll_delay }}"
+      ignore_errors: true
+
+    - name: "C2 | Set pending approval ID"
+      ansible.builtin.set_fact:
+        c2_approval_id: "{{ r_c2_approval.json.results[0].id }}"
+      when: r_c2_approval.json.count | default(0) | int > 0
+
+    - name: "C2 | Approve the human review gate"
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/workflow_approvals/{{ c2_approval_id }}/approve/"
+        method: POST
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        body_format: json
+        body: {}
+        status_code: [200, 201, 204]
+      register: r_c2_approved
+      when: c2_approval_id is defined
+      ignore_errors: true
+
+    - name: "C2 | Poll AAP — wait for workflow to complete (status=successful)"
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/workflow_jobs/{{ c2_workflow_job_id }}/"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_c2_wf_done
+      until: r_c2_wf_done.json.status | default('') == 'successful'
+      retries: "{{ aap_workflow_timeout_retries }}"
+      delay: "{{ aap_workflow_timeout_delay }}"
+      when: c2_workflow_job_id is defined
+      ignore_errors: true
+
+    - name: "C2 | Verify OSPF adjacency is FULL after remediation"
+      ansible.builtin.shell: |
+        sshpass -p '{{ cisco_rtr_pass }}' ssh \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
+          'show ip ospf neighbor'
+      delegate_to: bastion
+      register: r_c2_ospf_verify
+      changed_when: false
+      ignore_errors: true
+
+    - name: "C2 | Verify OSPF network type is POINT_TO_POINT on tunnel0"
+      ansible.builtin.shell: |
+        sshpass -p '{{ cisco_rtr_pass }}' ssh \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
+          'sh ip ospf int tu0 | s Type'
+      delegate_to: bastion
+      register: r_c2_ospf_type
+      changed_when: false
+      ignore_errors: true
+
+    - name: "C2 | Set OSPF facts for Challenge 2"
+      ansible.builtin.set_fact:
+        c2_ospf_full: "{{ 'FULL' in r_c2_ospf_verify.stdout | default('') }}"
+        c2_ospf_p2p: "{{ 'POINT_TO_POINT' in r_c2_ospf_type.stdout | default('') }}"
+
+    - name: "C2 | Wait for OSPF FULL before starting Challenge 3"
+      ansible.builtin.shell: |
+        sshpass -p '{{ cisco_rtr_pass }}' ssh \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
+          'show ip ospf neighbor'
+      delegate_to: bastion
+      register: r_c2_ospf_wait
+      until: "'FULL' in r_c2_ospf_wait.stdout | default('')"
+      retries: 12
+      delay: 10
+      changed_when: false
+      ignore_errors: true
+
+    # =========================================================================
+    # CHALLENGE 3 — Hello Timer Mismatch (hello-interval 30 on tunnel0)
+    # =========================================================================
+
+    - name: "C3 | Break OSPF — set ip ospf hello-interval 30 on tunnel0"
+      ansible.builtin.shell: |
+        sshpass -p '{{ cisco_rtr_pass }}' ssh \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          {{ cisco_rtr_user }}@{{ cisco_rtr_host }} << 'ENDSSH'
+        config t
+        int tu 0
+        ip ospf hello-interval 30
+        end
+        ENDSSH
+      delegate_to: bastion
+      register: r_c3_break
+      changed_when: true
+      ignore_errors: true
+
+    - name: "C3 | Wait 60s for OSPF dead timer to expire and neighbor to drop"
+      ansible.builtin.pause:
+        seconds: 60
+
+    - name: "C3 | Poll AAP — wait for Network-AIOps-Workflow to start running"
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/workflow_jobs/?name={{ workflow_name | urlencode }}&status=running&order_by=-id"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_c3_wf_running
+      until: >
+        (r_c3_wf_running.json.results | default([])
+          | rejectattr('id', 'in', [c1_workflow_job_id | default(0) | int, c2_workflow_job_id | default(0) | int])
+          | list | length) > 0
+      retries: "{{ aap_poll_retries }}"
+      delay: "{{ aap_poll_delay }}"
+      ignore_errors: true
+
+    - name: "C3 | Set workflow job ID"
+      ansible.builtin.set_fact:
+        c3_workflow_job_id: "{{ (r_c3_wf_running.json.results
+          | rejectattr('id', 'in', [c1_workflow_job_id | default(0) | int, c2_workflow_job_id | default(0) | int])
+          | list | first).id }}"
+      when: >
+        (r_c3_wf_running.json.results | default([])
+          | rejectattr('id', 'in', [c1_workflow_job_id | default(0) | int, c2_workflow_job_id | default(0) | int])
+          | list | length) > 0
+
+    - name: "C3 | Poll AAP — wait for pending workflow approval"
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/workflow_approvals/?status=pending&order_by=-id"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_c3_approval
+      until: r_c3_approval.json.count | default(0) | int > 0
+      retries: "{{ aap_poll_retries }}"
+      delay: "{{ aap_poll_delay }}"
+      ignore_errors: true
+
+    - name: "C3 | Set pending approval ID"
+      ansible.builtin.set_fact:
+        c3_approval_id: "{{ r_c3_approval.json.results[0].id }}"
+      when: r_c3_approval.json.count | default(0) | int > 0
+
+    - name: "C3 | Approve the human review gate"
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/workflow_approvals/{{ c3_approval_id }}/approve/"
+        method: POST
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        body_format: json
+        body: {}
+        status_code: [200, 201, 204]
+      register: r_c3_approved
+      when: c3_approval_id is defined
+      ignore_errors: true
+
+    - name: "C3 | Poll AAP — wait for workflow to complete (status=successful)"
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/v2/workflow_jobs/{{ c3_workflow_job_id }}/"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_c3_wf_done
+      until: r_c3_wf_done.json.status | default('') == 'successful'
+      retries: "{{ aap_workflow_timeout_retries }}"
+      delay: "{{ aap_workflow_timeout_delay }}"
+      when: c3_workflow_job_id is defined
+      ignore_errors: true
+
+    - name: "C3 | Verify OSPF adjacency is FULL after remediation"
+      ansible.builtin.shell: |
+        sshpass -p '{{ cisco_rtr_pass }}' ssh \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
+          'show ip ospf neighbor'
+      delegate_to: bastion
+      register: r_c3_ospf_verify
+      changed_when: false
+      ignore_errors: true
+
+    - name: "C3 | Verify hello-interval is restored to 10 on tunnel0"
+      ansible.builtin.shell: |
+        sshpass -p '{{ cisco_rtr_pass }}' ssh \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
+          'sh ip ospf int tu0 | s Hello'
+      delegate_to: bastion
+      register: r_c3_ospf_hello
+      changed_when: false
+      ignore_errors: true
+
+    - name: "C3 | Set OSPF facts for Challenge 3"
+      ansible.builtin.set_fact:
+        c3_ospf_full: "{{ 'FULL' in r_c3_ospf_verify.stdout | default('') }}"
+        c3_ospf_hello10: "{{ 'Hello 10' in r_c3_ospf_hello.stdout | default('') }}"
+
+    # =========================================================================
+    # FINAL REPORT
+    # =========================================================================
+
+    - name: Report solve status
+      ansible.builtin.debug:
+        msg: |
+          === Module 04 — Network Workflow OSPF Challenges ===
+
+          Challenge 1 (Interface Shut - tunnel0):
+            OSPF adjacency FULL: {{ 'ok' if c1_ospf_full | default(false) else 'NOT ok' }}
+            Workflow C1 (id={{ c1_workflow_job_id | default('unknown') }}) status: {{ r_c1_wf_done.json.status | default('unknown') }}
+
+          Challenge 2 (Network Type Mismatch):
+            OSPF adjacency FULL: {{ 'ok' if c2_ospf_full | default(false) else 'NOT ok' }}
+            OSPF network type POINT_TO_POINT: {{ 'ok' if c2_ospf_p2p | default(false) else 'NOT ok' }}
+            Workflow C2 (id={{ c2_workflow_job_id | default('unknown') }}) status: {{ r_c2_wf_done.json.status | default('unknown') }}
+
+          Challenge 3 (Hello Timer Mismatch):
+            OSPF adjacency FULL: {{ 'ok' if c3_ospf_full | default(false) else 'NOT ok' }}
+            Hello interval restored to 10: {{ 'ok' if c3_ospf_hello10 | default(false) else 'NOT ok' }}
+            Workflow C3 (id={{ c3_workflow_job_id | default('unknown') }}) status: {{ r_c3_wf_done.json.status | default('unknown') }}

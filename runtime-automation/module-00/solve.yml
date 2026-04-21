@@ -1,0 +1,574 @@
+---
+# Module 00 - Section 1: Log Enrichment and Prompt Generation Workflow
+# Solve: Creates the "AI Insights and Lightspeed prompt generation" WFJT,
+#        links 4 nodes in sequence, launches "Break Apache" to trigger EDA,
+#        then waits for the workflow to complete and verifies downstream artifacts.
+- name: Solve module-00
+  hosts: localhost
+  gather_facts: false
+  vars:
+    # Injected by the lab provisioner as extra_vars
+    aap_url: "{{ controller_url }}"
+    aap_user: "{{ controller_username }}"
+    aap_pass: "{{ controller_password }}"
+
+    # Human-readable workflow name (no emoji — looked up via icontains)
+    wfjt_name: "AI Insights and Lightspeed prompt generation"
+
+    # Job template names used in node lookup (icontains-safe)
+    jt_apache_check: "Apache Service Status Check"
+    jt_analyze: "RHEL AI: Analyze Incident"
+    jt_mattermost: "Notify via Mattermost"
+    jt_lightspeed_build: "Build Ansible Lightspeed Job Template"
+    jt_break_apache: "Break Apache"
+
+    # Downstream artifact names verified at the end
+    jt_remediation_gen: "Lightspeed Remediation Playbook Generator"
+    wfjt_remediation: "Remediation Workflow"
+
+    # Common URI args
+    _headers:
+      Content-Type: application/json
+
+  tasks:
+    # ------------------------------------------------------------------
+    # 0. Resolve the Default organization ID
+    # ------------------------------------------------------------------
+    - name: Get Default organization
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/organizations/?name=Default"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: 200
+      register: r_org
+      ignore_errors: true
+
+    - name: Set default_org_id
+      ansible.builtin.set_fact:
+        default_org_id: "{{ r_org.json.results[0].id }}"
+      when:
+        - r_org is not failed
+        - r_org.json.count | int > 0
+
+    # ------------------------------------------------------------------
+    # 1. Check if WFJT already exists (idempotency)
+    # ------------------------------------------------------------------
+    - name: Check if WFJT already exists
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/workflow_job_templates/?name__icontains=AI+Insights+and+Lightspeed+prompt"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: 200
+      register: r_wfjt_check
+      ignore_errors: true
+
+    - name: Set wfjt_exists fact
+      ansible.builtin.set_fact:
+        wfjt_exists: "{{ r_wfjt_check.json.count | int > 0 }}"
+        wfjt_id: "{{ r_wfjt_check.json.results[0].id | default('') }}"
+      when: r_wfjt_check is not failed
+
+    # ------------------------------------------------------------------
+    # 2. Create WFJT if it does not exist
+    # ------------------------------------------------------------------
+    - name: Create WFJT "{{ wfjt_name }}"
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/workflow_job_templates/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers: "{{ _headers }}"
+        body_format: json
+        body:
+          name: "{{ wfjt_name }}"
+          organization: "{{ default_org_id }}"
+        timeout: 30
+        status_code: [200, 201]
+      register: r_wfjt_create
+      when:
+        - default_org_id is defined
+        - not (wfjt_exists | default(false) | bool)
+      ignore_errors: true
+
+    - name: Set wfjt_id from newly created WFJT
+      ansible.builtin.set_fact:
+        wfjt_id: "{{ r_wfjt_create.json.id }}"
+      when:
+        - r_wfjt_create is not skipped
+        - r_wfjt_create is not failed
+        - r_wfjt_create.json is defined
+
+    # ------------------------------------------------------------------
+    # 3. Resolve all 4 job template IDs needed for workflow nodes
+    # ------------------------------------------------------------------
+    - name: Lookup JT - Apache Service Status Check
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains={{ jt_apache_check | urlencode }}"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: 200
+      register: r_jt_apache
+      ignore_errors: true
+
+    - name: Lookup JT - RHEL AI Analyze Incident
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains=Analyze+Incident"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: 200
+      register: r_jt_analyze
+      ignore_errors: true
+
+    - name: Lookup JT - Notify via Mattermost
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains=Notify+via+Mattermost"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: 200
+      register: r_jt_mattermost
+      ignore_errors: true
+
+    - name: Lookup JT - Build Ansible Lightspeed Job Template
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains=Build+Ansible+Lightspeed"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: 200
+      register: r_jt_lightspeed_build
+      ignore_errors: true
+
+    - name: Set job template ID facts
+      ansible.builtin.set_fact:
+        jt_apache_id: "{{ r_jt_apache.json.results[0].id | default('') }}"
+        jt_analyze_id: "{{ r_jt_analyze.json.results[0].id | default('') }}"
+        jt_mattermost_id: "{{ r_jt_mattermost.json.results[0].id | default('') }}"
+        jt_lightspeed_build_id: "{{ r_jt_lightspeed_build.json.results[0].id | default('') }}"
+      when:
+        - r_jt_apache is not failed
+        - r_jt_analyze is not failed
+        - r_jt_mattermost is not failed
+        - r_jt_lightspeed_build is not failed
+
+    # ------------------------------------------------------------------
+    # 4. Check if nodes already exist for this WFJT (idempotency)
+    # ------------------------------------------------------------------
+    - name: Check existing nodes for WFJT
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/?workflow_job_template={{ wfjt_id }}"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: 200
+      register: r_existing_nodes
+      when: wfjt_id | string | length > 0
+      ignore_errors: true
+
+    - name: Set nodes_exist fact
+      ansible.builtin.set_fact:
+        nodes_exist: "{{ r_existing_nodes.json.count | int > 0 }}"
+      when: r_existing_nodes is not skipped and r_existing_nodes is not failed
+
+    # ------------------------------------------------------------------
+    # 5. Create Node 1 (root): Apache Service Status Check
+    # ------------------------------------------------------------------
+    - name: Create workflow node 1 - Apache Service Status Check
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers: "{{ _headers }}"
+        body_format: json
+        body:
+          workflow_job_template: "{{ wfjt_id | int }}"
+          unified_job_template: "{{ jt_apache_id | int }}"
+          convergence: "any"
+        timeout: 30
+        status_code: [200, 201]
+      register: r_node1
+      when:
+        - wfjt_id | string | length > 0
+        - jt_apache_id | string | length > 0
+        - not (nodes_exist | default(false) | bool)
+      ignore_errors: true
+
+    - name: Set node1_id
+      ansible.builtin.set_fact:
+        node1_id: "{{ r_node1.json.id }}"
+      when:
+        - r_node1 is not skipped
+        - r_node1 is not failed
+
+    # ------------------------------------------------------------------
+    # 6. Create Node 2: RHEL AI Analyze Incident
+    # ------------------------------------------------------------------
+    - name: Create workflow node 2 - RHEL AI Analyze Incident
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers: "{{ _headers }}"
+        body_format: json
+        body:
+          workflow_job_template: "{{ wfjt_id | int }}"
+          unified_job_template: "{{ jt_analyze_id | int }}"
+        timeout: 30
+        status_code: [200, 201]
+      register: r_node2
+      when:
+        - wfjt_id | string | length > 0
+        - jt_analyze_id | string | length > 0
+        - not (nodes_exist | default(false) | bool)
+      ignore_errors: true
+
+    - name: Set node2_id
+      ansible.builtin.set_fact:
+        node2_id: "{{ r_node2.json.id }}"
+      when:
+        - r_node2 is not skipped
+        - r_node2 is not failed
+
+    # ------------------------------------------------------------------
+    # 7. Create Node 3: Notify via Mattermost
+    # ------------------------------------------------------------------
+    - name: Create workflow node 3 - Notify via Mattermost
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers: "{{ _headers }}"
+        body_format: json
+        body:
+          workflow_job_template: "{{ wfjt_id | int }}"
+          unified_job_template: "{{ jt_mattermost_id | int }}"
+        timeout: 30
+        status_code: [200, 201]
+      register: r_node3
+      when:
+        - wfjt_id | string | length > 0
+        - jt_mattermost_id | string | length > 0
+        - not (nodes_exist | default(false) | bool)
+      ignore_errors: true
+
+    - name: Set node3_id
+      ansible.builtin.set_fact:
+        node3_id: "{{ r_node3.json.id }}"
+      when:
+        - r_node3 is not skipped
+        - r_node3 is not failed
+
+    # ------------------------------------------------------------------
+    # 8. Create Node 4: Build Ansible Lightspeed Job Template
+    # ------------------------------------------------------------------
+    - name: Create workflow node 4 - Build Ansible Lightspeed Job Template
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers: "{{ _headers }}"
+        body_format: json
+        body:
+          workflow_job_template: "{{ wfjt_id | int }}"
+          unified_job_template: "{{ jt_lightspeed_build_id | int }}"
+        timeout: 30
+        status_code: [200, 201]
+      register: r_node4
+      when:
+        - wfjt_id | string | length > 0
+        - jt_lightspeed_build_id | string | length > 0
+        - not (nodes_exist | default(false) | bool)
+      ignore_errors: true
+
+    - name: Set node4_id
+      ansible.builtin.set_fact:
+        node4_id: "{{ r_node4.json.id }}"
+      when:
+        - r_node4 is not skipped
+        - r_node4 is not failed
+
+    # ------------------------------------------------------------------
+    # 9. Link nodes: Node 1 -> Node 2 (success)
+    # ------------------------------------------------------------------
+    - name: Link node 1 success to node 2
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/{{ node1_id }}/success_nodes/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers: "{{ _headers }}"
+        body_format: json
+        body:
+          id: "{{ node2_id | int }}"
+        timeout: 30
+        status_code: [200, 201, 204]
+      when:
+        - node1_id is defined
+        - node2_id is defined
+        - not (nodes_exist | default(false) | bool)
+      ignore_errors: true
+
+    # ------------------------------------------------------------------
+    # 10. Link nodes: Node 2 -> Node 3 (success)
+    # ------------------------------------------------------------------
+    - name: Link node 2 success to node 3
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/{{ node2_id }}/success_nodes/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers: "{{ _headers }}"
+        body_format: json
+        body:
+          id: "{{ node3_id | int }}"
+        timeout: 30
+        status_code: [200, 201, 204]
+      when:
+        - node2_id is defined
+        - node3_id is defined
+        - not (nodes_exist | default(false) | bool)
+      ignore_errors: true
+
+    # ------------------------------------------------------------------
+    # 11. Link nodes: Node 3 -> Node 4 (success)
+    # ------------------------------------------------------------------
+    - name: Link node 3 success to node 4
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/{{ node3_id }}/success_nodes/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers: "{{ _headers }}"
+        body_format: json
+        body:
+          id: "{{ node4_id | int }}"
+        timeout: 30
+        status_code: [200, 201, 204]
+      when:
+        - node3_id is defined
+        - node4_id is defined
+        - not (nodes_exist | default(false) | bool)
+      ignore_errors: true
+
+    # ------------------------------------------------------------------
+    # 12. Re-fetch nodes if they already existed (need IDs for debug report)
+    # ------------------------------------------------------------------
+    - name: Re-fetch existing nodes to confirm link state
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/workflow_job_template_nodes/?workflow_job_template={{ wfjt_id }}"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: 200
+      register: r_nodes_final
+      when: wfjt_id | string | length > 0
+      ignore_errors: true
+
+    - name: Set node_count fact
+      ansible.builtin.set_fact:
+        node_count: "{{ r_nodes_final.json.count | default(0) }}"
+      when: r_nodes_final is not skipped and r_nodes_final is not failed
+
+    # ------------------------------------------------------------------
+    # 13. Lookup "Break Apache" JT and launch it
+    # ------------------------------------------------------------------
+    - name: Lookup Break Apache job template
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains=Break+Apache"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: 200
+      register: r_jt_break
+      ignore_errors: true
+
+    - name: Set break_apache_jt_id
+      ansible.builtin.set_fact:
+        break_apache_jt_id: "{{ r_jt_break.json.results[0].id | default('') }}"
+      when:
+        - r_jt_break is not failed
+        - r_jt_break.json.count | int > 0
+
+    - name: Launch Break Apache job template
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/job_templates/{{ break_apache_jt_id }}/launch/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers: "{{ _headers }}"
+        body_format: json
+        body: {}
+        timeout: 30
+        status_code: [200, 201]
+      register: r_break_launch
+      when: break_apache_jt_id | string | length > 0
+      ignore_errors: true
+
+    - name: Set break_job_id
+      ansible.builtin.set_fact:
+        break_job_id: "{{ r_break_launch.json.id | default('') }}"
+      when:
+        - r_break_launch is not skipped
+        - r_break_launch is not failed
+
+    # ------------------------------------------------------------------
+    # 14. Poll Break Apache job until successful (max 3 minutes)
+    # ------------------------------------------------------------------
+    - name: Poll Break Apache job until complete
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/jobs/{{ break_job_id }}/"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: 200
+      register: r_break_poll
+      until: r_break_poll.json.status in ['successful', 'failed', 'error', 'canceled']
+      retries: 18
+      delay: 10
+      when: break_job_id | string | length > 0
+      ignore_errors: true
+
+    - name: Set break_job_status
+      ansible.builtin.set_fact:
+        break_job_status: "{{ r_break_poll.json.status | default('unknown') }}"
+      when:
+        - r_break_poll is not skipped
+        - r_break_poll is not failed
+
+    # ------------------------------------------------------------------
+    # 15. Wait for EDA to auto-trigger "AI Insights" workflow job
+    #     Poll up to 5 minutes (30 retries x 10s) for status=successful
+    # ------------------------------------------------------------------
+    - name: Wait for EDA-triggered AI Insights workflow job to appear and complete
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/workflow_jobs/?name__icontains=AI+Insights&order_by=-id"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: 200
+      register: r_wf_poll
+      until: >
+        r_wf_poll.json.count | int > 0 and
+        r_wf_poll.json.results[0].status in ['successful', 'failed', 'error', 'canceled']
+      retries: 30
+      delay: 10
+      ignore_errors: true
+
+    - name: Set workflow_job_status fact
+      ansible.builtin.set_fact:
+        wf_job_status: "{{ r_wf_poll.json.results[0].status | default('not_found') }}"
+        wf_job_id: "{{ r_wf_poll.json.results[0].id | default('') }}"
+      when:
+        - r_wf_poll is not failed
+        - r_wf_poll.json.count | int > 0
+
+    # ------------------------------------------------------------------
+    # 16. Verify downstream artifacts created by the workflow
+    # ------------------------------------------------------------------
+    - name: Check Lightspeed Remediation Playbook Generator JT exists
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/job_templates/?name__icontains=Lightspeed+Remediation+Playbook+Generator"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: 200
+      register: r_jt_remediation_gen
+      ignore_errors: true
+
+    - name: Check Remediation Workflow WFJT exists
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/v2/workflow_job_templates/?name__icontains=Remediation+Workflow"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: 200
+      register: r_wfjt_remediation
+      ignore_errors: true
+
+    - name: Set artifact facts
+      ansible.builtin.set_fact:
+        remediation_gen_jt_found: "{{ r_jt_remediation_gen.json.count | int > 0 }}"
+        remediation_wfjt_found: "{{ r_wfjt_remediation.json.count | int > 0 }}"
+      when:
+        - r_jt_remediation_gen is not failed
+        - r_wfjt_remediation is not failed
+
+    # ------------------------------------------------------------------
+    # 17. Report solve status
+    # ------------------------------------------------------------------
+    - name: Report solve status
+      ansible.builtin.debug:
+        msg: |
+          WFJT "AI Insights and Lightspeed prompt generation": {{ 'ok (id=' + wfjt_id | string + ')' if wfjt_id | string | length > 0 else 'NOT ok - not found/created' }}
+          Workflow nodes linked (count): {{ node_count | default('unknown') }}/4
+          Break Apache job: {{ break_job_status | default('not launched') }}
+          EDA-triggered workflow job (id={{ wf_job_id | default('?') }}): {{ wf_job_status | default('not found') }}
+          JT "Lightspeed Remediation Playbook Generator": {{ 'ok' if remediation_gen_jt_found | default(false) | bool else 'NOT ok - not yet created' }}
+          WFJT "Remediation Workflow": {{ 'ok' if remediation_wfjt_found | default(false) | bool else 'NOT ok - not yet created' }}
+
+          NOTE: If the EDA-triggered workflow is still running, wait a few minutes and click Validate again.

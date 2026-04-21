@@ -1,0 +1,382 @@
+---
+# Module 07 — Section 8: AI-Driven Incident Response with MCP (3 Challenges)
+#
+# Challenge 1 (Claude Code interactive): SKIPPED — requires human interaction with Claude Code CLI.
+# Challenge 2 (CrewAI autonomous agents): runs incident_agent.py via SSH to bastion.
+# Challenge 3 (Operationalizing with EDA): drives AAP API + EDA API, verifies AI Agent pipeline.
+#
+# Hosts topology:
+#   localhost  — API calls to AAP controller and EDA
+#   bastion    — SSH target for Python agent script + node1 reachability checks
+#   node1      — service under test, reached via: delegate_to: bastion + ssh node1
+#
+- name: Module 07 Solve — AI-Driven Incident Response with MCP
+  hosts: localhost
+  gather_facts: false
+  vars:
+    # AAP / EDA endpoint — injected by the FTL runtime as an extravar
+    aap_url: "{{ controller_url | default('') }}"
+    aap_user: "{{ controller_username | default('') }}"
+    aap_pass: "{{ controller_password | default('') }}"
+    # Convenience: base URLs for both APIs
+    aap_api: "{{ aap_url }}/api/v2"
+    eda_api: "{{ aap_url }}/api/eda/v1"
+
+  # -----------------------------------------------------------------------
+  # BLOCK 0 — Gather EDA activation IDs (shared by C2 and C3)
+  # -----------------------------------------------------------------------
+  tasks:
+
+    - name: "[C2-0] GET EDA activation ID for 'Web App'"
+      ansible.builtin.uri:
+        url: "{{ eda_api }}/activations/?name=Web+App"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_eda_webapp
+      ignore_errors: true
+
+    - name: "[C2-0] Set Web App activation ID"
+      ansible.builtin.set_fact:
+        eda_webapp_id: "{{ r_eda_webapp.json.results[0].id | default('') }}"
+      when: r_eda_webapp.json.results | default([]) | length > 0
+
+    - name: "[C2-0] GET EDA activation ID for 'AI Agent'"
+      ansible.builtin.uri:
+        url: "{{ eda_api }}/activations/?name=AI+Agent"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_eda_aiagent
+      ignore_errors: true
+
+    - name: "[C2-0] Set AI Agent activation ID"
+      ansible.builtin.set_fact:
+        eda_aiagent_id: "{{ r_eda_aiagent.json.results[0].id | default('') }}"
+      when: r_eda_aiagent.json.results | default([]) | length > 0
+
+    # -----------------------------------------------------------------------
+    # BLOCK 1 — Challenge 2 prerequisite: disable both EDA activations
+    # -----------------------------------------------------------------------
+
+    - name: "[C2-0] Disable 'Web App' EDA activation"
+      ansible.builtin.uri:
+        url: "{{ eda_api }}/activations/{{ eda_webapp_id }}/"
+        method: PATCH
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        headers:
+          Content-Type: application/json
+        body_format: json
+        body:
+          is_enabled: false
+        status_code: [200, 202]
+      when: eda_webapp_id | default('') | length > 0
+      ignore_errors: true
+
+    - name: "[C2-0] Disable 'AI Agent' EDA activation"
+      ansible.builtin.uri:
+        url: "{{ eda_api }}/activations/{{ eda_aiagent_id }}/"
+        method: PATCH
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        headers:
+          Content-Type: application/json
+        body_format: json
+        body:
+          is_enabled: false
+        status_code: [200, 202]
+      when: eda_aiagent_id | default('') | length > 0
+      ignore_errors: true
+
+    - name: "[C2-0] Wait 15 s for EDA activations to deactivate"
+      ansible.builtin.pause:
+        seconds: 15
+
+    # -----------------------------------------------------------------------
+    # BLOCK 2 — Challenge 2: run incident_agent.py on bastion (async)
+    # -----------------------------------------------------------------------
+
+    - name: "[C2-1] Run CrewAI incident agent pipeline (async, 5-min timeout)"
+      ansible.builtin.shell: |
+        cd /home/lab-user/agentic-aiops
+        source /home/lab-user/.venv/bin/activate
+        python3 incident_agent.py all --break-first "Apache web server is down on node1"
+      async: 300
+      poll: 0
+      delegate_to: bastion
+      register: r_agent_job
+      ignore_errors: true
+
+    - name: "[C2-1] Wait for incident agent to complete (poll every 15 s, max 5 min)"
+      ansible.builtin.async_status:
+        jid: "{{ r_agent_job.ansible_job_id }}"
+      delegate_to: bastion
+      register: r_agent_result
+      until: r_agent_result.finished
+      retries: 20
+      delay: 15
+      ignore_errors: true
+
+    - name: "[C2-1] Assert agent pipeline completed successfully"
+      ansible.builtin.set_fact:
+        c2_agent_ok: >-
+          {{
+            r_agent_result.rc | default(1) == 0 and
+            (
+              'REPORT' in (r_agent_result.stdout | default('')) or
+              'OUTCOME' in (r_agent_result.stdout | default(''))
+            )
+          }}
+
+    - name: "[C2-2] Verify httpd is active on node1 after agent remediation"
+      ansible.builtin.command: "sudo ssh -o StrictHostKeyChecking=no node1 sudo systemctl is-active httpd.service"
+      delegate_to: bastion
+      register: r_httpd_c2
+      changed_when: false
+      ignore_errors: true
+
+    - name: "[C2-2] Set httpd-C2 status fact"
+      ansible.builtin.set_fact:
+        c2_httpd_ok: "{{ r_httpd_c2.stdout | default('') | trim == 'active' }}"
+
+    # -----------------------------------------------------------------------
+    # BLOCK 3 — Challenge 3: enable AI Agent EDA, break Apache, wait for heal
+    # -----------------------------------------------------------------------
+
+    - name: "[C3-1] Enable 'AI Agent' EDA activation"
+      ansible.builtin.uri:
+        url: "{{ eda_api }}/activations/{{ eda_aiagent_id }}/"
+        method: PATCH
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        headers:
+          Content-Type: application/json
+        body_format: json
+        body:
+          is_enabled: true
+        status_code: [200, 202]
+      when: eda_aiagent_id | default('') | length > 0
+      ignore_errors: true
+
+    - name: "[C3-1] Poll until AI Agent activation status is 'running' (max 3 min)"
+      ansible.builtin.uri:
+        url: "{{ eda_api }}/activations/{{ eda_aiagent_id }}/"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_aiagent_status
+      until: r_aiagent_status.json.status | default('') == 'running'
+      retries: 18
+      delay: 10
+      when: eda_aiagent_id | default('') | length > 0
+      ignore_errors: true
+
+    - name: "[C3-2] GET 'Break Apache' job template ID"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/job_templates/?name__icontains=Break+Apache"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_break_jt
+      ignore_errors: true
+
+    - name: "[C3-2] Set Break Apache job template ID"
+      ansible.builtin.set_fact:
+        break_jt_id: "{{ r_break_jt.json.results[0].id | default('') }}"
+      when: r_break_jt.json.results | default([]) | length > 0
+
+    - name: "[C3-2] Launch 'Break Apache' job template"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/job_templates/{{ break_jt_id }}/launch/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        headers:
+          Content-Type: application/json
+        body_format: json
+        body: {}
+        status_code: [200, 201, 202]
+      register: r_break_launch
+      when: break_jt_id | default('') | length > 0
+      ignore_errors: true
+
+    - name: "[C3-2] Set Break Apache launched job ID"
+      ansible.builtin.set_fact:
+        break_job_id: "{{ r_break_launch.json.id | default('') }}"
+      when: r_break_launch.json.id | default('') | length > 0
+
+    - name: "[C3-2] Poll Break Apache job until successful (max 3 min)"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/jobs/{{ break_job_id }}/"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_break_job
+      until: r_break_job.json.status | default('') in ['successful', 'failed', 'error', 'canceled']
+      retries: 18
+      delay: 10
+      when: break_job_id | default('') | length > 0
+      ignore_errors: true
+
+    - name: "[C3-3] Wait 60 s for EDA to detect the event and trigger AI Agent job"
+      ansible.builtin.pause:
+        seconds: 60
+
+    - name: "[C3-3] Poll for AI Agent: Incident Response job to appear and succeed (max 3 min)"
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/jobs/?name__icontains=AI+Agent&order_by=-created"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_ai_jobs
+      until: >-
+        r_ai_jobs.json.results | default([]) | length > 0 and
+        r_ai_jobs.json.results[0].status | default('') in ['successful', 'failed', 'error', 'canceled']
+      retries: 18
+      delay: 10
+      ignore_errors: true
+
+    - name: "[C3-3] Set AI Agent job status fact"
+      ansible.builtin.set_fact:
+        c3_ai_job_ok: >-
+          {{
+            r_ai_jobs.json.results | default([]) | length > 0 and
+            r_ai_jobs.json.results[0].status | default('') == 'successful'
+          }}
+
+    - name: "[C3-4] Verify httpd is active on node1 after AI Agent remediation"
+      ansible.builtin.command: "sudo ssh -o StrictHostKeyChecking=no node1 sudo systemctl is-active httpd.service"
+      delegate_to: bastion
+      register: r_httpd_c3
+      changed_when: false
+      ignore_errors: true
+
+    - name: "[C3-4] Set httpd-C3 status fact"
+      ansible.builtin.set_fact:
+        c3_httpd_ok: "{{ r_httpd_c3.stdout | default('') | trim == 'active' }}"
+
+    # -----------------------------------------------------------------------
+    # BLOCK 4 — Challenge 3 restore: AI Agent off, Web App on
+    # -----------------------------------------------------------------------
+
+    - name: "[C3-5] Disable 'AI Agent' EDA activation (restore)"
+      ansible.builtin.uri:
+        url: "{{ eda_api }}/activations/{{ eda_aiagent_id }}/"
+        method: PATCH
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        headers:
+          Content-Type: application/json
+        body_format: json
+        body:
+          is_enabled: false
+        status_code: [200, 202]
+      when: eda_aiagent_id | default('') | length > 0
+      ignore_errors: true
+
+    - name: "[C3-5] Enable 'Web App' EDA activation (restore)"
+      ansible.builtin.uri:
+        url: "{{ eda_api }}/activations/{{ eda_webapp_id }}/"
+        method: PATCH
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        headers:
+          Content-Type: application/json
+        body_format: json
+        body:
+          is_enabled: true
+        status_code: [200, 202]
+      when: eda_webapp_id | default('') | length > 0
+      ignore_errors: true
+
+    - name: "[C3-5] Poll until Web App activation status is 'running' (max 3 min)"
+      ansible.builtin.uri:
+        url: "{{ eda_api }}/activations/{{ eda_webapp_id }}/"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_webapp_status
+      until: r_webapp_status.json.status | default('') == 'running'
+      retries: 18
+      delay: 10
+      when: eda_webapp_id | default('') | length > 0
+      ignore_errors: true
+
+    - name: "[C3-5] Set Web App final status fact"
+      ansible.builtin.set_fact:
+        c3_webapp_running: "{{ r_webapp_status.json.status | default('') == 'running' }}"
+      when: r_webapp_status is defined and r_webapp_status.json is defined
+
+    # -----------------------------------------------------------------------
+    # BLOCK 5 — Report
+    # -----------------------------------------------------------------------
+
+    - name: "Report solve status"
+      ansible.builtin.debug:
+        msg: |
+          === Module 07 Solve Report ===
+
+          CHALLENGE 1 (Claude Code interactive): SKIPPED — not automatable
+
+          CHALLENGE 2 (CrewAI Autonomous Agents):
+            CrewAI agent pipeline rc=0 + output matches: {{ 'ok' if c2_agent_ok | default(false) else 'NOT ok' }}
+            httpd running on node1 after C2 remediation:  {{ 'ok' if c2_httpd_ok | default(false) else 'NOT ok' }}
+
+          CHALLENGE 3 (Operationalizing with EDA):
+            Break Apache job launched:                    {{ 'ok' if break_job_id | default('') | length > 0 else 'NOT ok' }}
+            AI Agent: Incident Response job successful:   {{ 'ok' if c3_ai_job_ok | default(false) else 'NOT ok' }}
+            httpd running on node1 after C3 remediation:  {{ 'ok' if c3_httpd_ok | default(false) else 'NOT ok' }}
+
+          EDA FINAL STATE (restore):
+            Web App activation = running:                 {{ 'ok' if c3_webapp_running | default(false) else 'NOT ok (check EDA dashboard)' }}
+            AI Agent activation = stopped:                ok (disabled in C3-5)
+
+          NOTE: If any async item shows NOT ok, wait a few minutes and click Validate.
+          The agent pipeline and EDA→AI Agent job can take 3-5 minutes to complete.

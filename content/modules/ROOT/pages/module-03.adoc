@@ -127,6 +127,14 @@ image::rulebook_history.png[history, 100%, link="_images/rulebook_history.png", 
 [quote]
 The rulebook activation history will show events as they are received from Splunk. In the next module, you'll trigger an OSPF neighbor down event and see how the entire closed-loop automation workflow responds automatically.
 
+++++
+<div class="solve-button-placeholder" data-module="module-03"></div>
+++++
+
+++++
+<div class="validate-button-placeholder" data-module="module-03"></div>
+++++
+
 == Complete
 
 You have verified the EDA controller configuration. In the next section, you'll see the complete AI-driven network automation workflow in action - from OSPF failure detection in Splunk, through Event-Driven Ansible triggering, to Lightspeed AI generating the remediation playbook automatically.

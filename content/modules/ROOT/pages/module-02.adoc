@@ -259,6 +259,14 @@ no shut
 
 The Cisco router and Splunk are configured to observe and create alerts for OSPF neighbor down states. 
 
+++++
+<div class="solve-button-placeholder" data-module="module-02"></div>
+++++
+
+++++
+<div class="validate-button-placeholder" data-module="module-02"></div>
+++++
+
 == Complete
 
 You have completed this module. Move forward to the next section to configure the Ansible EDA controller.
