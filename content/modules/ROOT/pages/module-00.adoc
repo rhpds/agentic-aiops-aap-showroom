@@ -360,13 +360,20 @@ You created a workflow that:
 
 In the next step, we’ll use that prompt to fix Apache automatically!
 
+== Complete
+You have completed this module. Move forward to the next one to use the created templates.
+
+ifeval::["{run_e2e_load_test}" == "true"]
+=====
+.End-to-End Validation (RHDP Only) ✅
+[%collapsible]
+====
 ++++
 <div class="solve-button-placeholder" data-module="module-00"></div>
 ++++
-
 ++++
 <div class="validate-button-placeholder" data-module="module-00"></div>
 ++++
-
-== Complete
-You have completed this module. Move forward to the next one to use the created templates.
+====
+=====
+endif::[]

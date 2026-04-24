@@ -457,14 +457,21 @@ In the next modules, you'll apply everything you've learned to a **network autom
 **Both parts are independent.** If you've already completed Part 2 or want to skip ahead to the Summary and Call to Actions, you can navigate there directly from the menu. However, we strongly encourage completing Part 2 for a deeper understanding of AIOps capabilities.
 ====
 
-++++
-<div class="solve-button-placeholder" data-module="module-01"></div>
-++++
-
-++++
-<div class="validate-button-placeholder" data-module="module-01"></div>
-++++
-
 == Complete
 
 Click the link below to continue to **Module 3: Splunk** and begin Part 2.
+
+ifeval::["{run_e2e_load_test}" == "true"]
+=====
+.End-to-End Validation (RHDP Only) ✅
+[%collapsible]
+====
+++++
+<div class="solve-button-placeholder" data-module="module-01"></div>
+++++
+++++
+<div class="validate-button-placeholder" data-module="module-01"></div>
+++++
+====
+=====
+endif::[]

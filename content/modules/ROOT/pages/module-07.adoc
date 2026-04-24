@@ -676,13 +676,6 @@ This is the pattern for enterprise AI-driven operations: AI handles the non-dete
 
 The automation orchestrator will make this integration native: visual workflow design, unified audit trails, and seamless human-in-the-loop gates, turning the creative engineering you saw today into governed, enterprise-ready simplicity.
 
-++++
-<div class="solve-button-placeholder" data-module="module-07"></div>
-++++
-
-++++
-<div class="validate-button-placeholder" data-module="module-07"></div>
-++++
 
 == Complete
 
@@ -695,3 +688,19 @@ Three takeaways from this module:
 . *You can adopt agentic automation incrementally with the tools you already have.* You do not need to wait for a new platform or rip out existing workflows. Event-Driven Ansible, job templates, and MCP work together today. Start with human-in-the-loop AI assistance, progress to autonomous agents when your organization is ready, and look ahead to the automation orchestrator for native integration, all on the same Ansible Automation Platform foundation.
 
 Click the link below to proceed to the *Summary and Call to Actions*.
+
+ifeval::["{run_e2e_load_test}" == "true"]
+=====
+.End-to-End Validation (RHDP Only) ✅
+[%collapsible]
+====
+++++
+<div class="solve-button-placeholder" data-module="module-07"></div>
+++++
+
+++++
+<div class="validate-button-placeholder" data-module="module-07"></div>
+++++
+====
+=====
+endif::[]

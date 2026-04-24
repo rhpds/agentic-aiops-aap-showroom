@@ -571,14 +571,23 @@ By using Ansible Lightspeed, our network expert could focus on codifying their t
 
 You have successfully completed the Network Automation portion of this lab! You've now seen how AI-driven automation can be applied to both server infrastructure (Part 1) and network infrastructure (Part 2).
 
-++++
-<div class="solve-button-placeholder" data-module="module-04"></div>
-++++
 
-++++
-<div class="validate-button-placeholder" data-module="module-04"></div>
-++++
 
 == Complete
 
 Click the link below to proceed to the **Summary and Call to Actions** for next steps and resources.
+
+ifeval::["{run_e2e_load_test}" == "true"]
+=====
+.End-to-End Validation (RHDP Only) ✅
+[%collapsible]
+====
+++++
+<div class="solve-button-placeholder" data-module="module-04"></div>
+++++
+++++
+<div class="validate-button-placeholder" data-module="module-04"></div>
+++++
+====
+=====
+endif::[]
