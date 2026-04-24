@@ -18,18 +18,16 @@ ui:
     - path: ./content/lib
     - path: .nojekyll
     - path: ui.yml
-      contents: "static_files: [ .nojekyll, css/site-extra.css, js/buttons.js ]"
+      contents: "static_files: [ .nojekyll ]"
+
+runtime:
+  cache_dir: ./.cache/antora
 
 antora:
   extensions:
-    - '@sntke/antora-mermaid-extension'
+    - require: ./content/lib/dev-mode.js
+      enabled: false
     - require: ./content/lib/inject-buttons.js
 
-asciidoc:
-  attributes:
-    experimental: true
-    page-pagination: true
-    showroom-collection-version: v1.5.6
-    
 output:
   dir: ./www

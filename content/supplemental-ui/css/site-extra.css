@@ -100,6 +100,14 @@ video {
 .send-to-command-btn.copied { background: #3498db; }
 .listingblock pre.send-to { padding-top: 3rem !important; }
 
+/* ── Wrap long prompts in execute/send-to blocks ────── */
+.listingblock pre.send-to,
+.listingblock pre.send-to code {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  overflow-x: visible !important;
+}
+
 /* ── Solve / Validate shared ────────────────────────── */
 .btn-section { margin: 2rem 0; padding: 1.5rem; background: #f8f9fa; border: 2px solid #dee2e6; border-radius: 8px; }
 .btn-controls { margin-bottom: 1rem; }
