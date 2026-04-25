@@ -7,6 +7,14 @@
   connection: local
   gather_facts: false
   vars:
+    # ── Service URLs and credentials (from runner environment) ───────────────
+    splunk_url: "{{ lookup('env', 'SPLUNK_URL') }}"
+    splunk_username: "{{ lookup('env', 'SPLUNK_USERNAME') }}"
+    splunk_password: "{{ lookup('env', 'SPLUNK_PASSWORD') }}"
+    eda_webhook_url: "{{ lookup('env', 'EDA_WEBHOOK_URL') }}"
+    controller_url: "{{ lookup('env', 'CONTROLLER_URL') }}"
+    controller_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    controller_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
     # ── Splunk ──────────────────────────────────────────────────────────────
     splunk_tcp_port: "5514"
     splunk_app: "cisco_ios"
@@ -17,10 +25,14 @@
     aap_job_template_name: "Network-Router-Setup"
     aap_poll_retries: 30        # 30 x 10 s = 5 min
     aap_poll_delay: 10
-    # ── Cisco router creds (static in lab) ──────────────────────────────────
+    # ── Cisco router ────────────────────────────────────────────────────────
     rtr_user: "admin"
-    rtr_password: "ansible123!"
+    rtr_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') | default('ansible123!') }}"
     rtr_host: "cisco-rtr1"
+    # ── Bastion SSH (ProxyJump to reach cisco-rtr1) ──────────────────────────
+    bastion_user: "{{ lookup('env', 'SSH_USERNAME') | default('lab-user') }}"
+    bastion_host: "{{ lookup('env', 'SSH_HOSTNAME') | default('bastion') }}"
+    bastion_port: "{{ lookup('env', 'SSH_PORT') | default('22') }}"
 
   tasks:
 
@@ -146,6 +158,7 @@
         sshpass -p '{{ rtr_password }}' \
           ssh -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
+              -o ProxyJump={{ bastion_user }}@{{ bastion_host }}:{{ bastion_port }} \
               {{ rtr_user }}@{{ rtr_host }} \
           'config t
         int tu 0
@@ -217,6 +230,7 @@
         sshpass -p '{{ rtr_password }}' \
           ssh -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
+              -o ProxyJump={{ bastion_user }}@{{ bastion_host }}:{{ bastion_port }} \
               {{ rtr_user }}@{{ rtr_host }} \
           'config t
         int tu 0

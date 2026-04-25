@@ -11,10 +11,14 @@
   connection: local
   gather_facts: false
   vars:
-    student_user: "{{ user | default('') }}"
-    aap_url: "{{ controller_url }}"
-    aap_user: "{{ controller_username }}"
-    aap_pass: "{{ controller_password }}"
+    student_user: "{{ lookup('env', 'USER') | default(user | default('')) }}"
+    # ── Service URLs and credentials (from runner environment) ───────────────
+    controller_url: "{{ lookup('env', 'CONTROLLER_URL') }}"
+    controller_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    controller_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+    aap_url: "{{ lookup('env', 'CONTROLLER_URL') }}"
+    aap_user: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    aap_pass: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
 
   tasks:
     # -------------------------------------------------------
@@ -120,7 +124,7 @@
     # Validate all tasks
     # -------------------------------------------------------
     - name: Validate all tasks
-      rhpds.ftl.validation_check:
+      validation_check:
         check: "{{ _task1_ok and _task2_ok and _task3_ok and _task4_ok and _task5_ok }}"
         pass_msg: |
           Task 1: Workflow job template "AI Insights and Lightspeed prompt generation" exists

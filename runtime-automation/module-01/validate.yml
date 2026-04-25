@@ -4,13 +4,14 @@
   connection: local
   gather_facts: false
   vars:
-    student_user: "{{ user | default('') }}"
-    controller_url: "{{ controller_url }}"
-    controller_username: "{{ controller_username }}"
-    controller_password: "{{ controller_password }}"
+    student_user: "{{ lookup('env', 'USER') | default(user | default('')) }}"
+    # ── Service URLs and credentials (from runner environment) ───────────────
+    controller_url: "{{ lookup('env', 'CONTROLLER_URL') }}"
+    controller_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    controller_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
     _auth:
-      user: "{{ controller_username }}"
-      password: "{{ controller_password }}"
+      user: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+      password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
       force_basic_auth: true
 
   tasks:

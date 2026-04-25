@@ -5,12 +5,16 @@
 #        then waits for the workflow to complete and verifies downstream artifacts.
 - name: Solve module-00
   hosts: localhost
+  connection: local
   gather_facts: false
   vars:
-    # Injected by the lab provisioner as extra_vars
-    aap_url: "{{ controller_url }}"
-    aap_user: "{{ controller_username }}"
-    aap_pass: "{{ controller_password }}"
+    # ── Service URLs and credentials (from runner environment) ───────────────
+    controller_url: "{{ lookup('env', 'CONTROLLER_URL') }}"
+    controller_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    controller_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+    aap_url: "{{ lookup('env', 'CONTROLLER_URL') }}"
+    aap_user: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    aap_pass: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
 
     # Human-readable workflow name (no emoji — looked up via icontains)
     wfjt_name: "AI Insights and Lightspeed prompt generation"
@@ -176,7 +180,8 @@
         - r_jt_lightspeed_build is not failed
 
     # ------------------------------------------------------------------
-    # 4. Check if nodes already exist for this WFJT (idempotency)
+    # 4. Check existing nodes and their link state (idempotency)
+    #    Nodes need to be re-created if they exist but have no links.
     # ------------------------------------------------------------------
     - name: Check existing nodes for WFJT
       ansible.builtin.uri:
@@ -192,10 +197,38 @@
       when: wfjt_id | string | length > 0
       ignore_errors: true
 
-    - name: Set nodes_exist fact
+    - name: Determine if nodes need to be created or re-linked
       ansible.builtin.set_fact:
-        nodes_exist: "{{ r_existing_nodes.json.count | int > 0 }}"
+        # Nodes are fully configured when count==4 AND at least one node has success_nodes
+        nodes_fully_configured: >-
+          {{
+            r_existing_nodes.json.count | int == 4 and
+            (r_existing_nodes.json.results | default([]) | selectattr('success_nodes', 'defined') |
+             map(attribute='success_nodes') | select | list | length > 0)
+          }}
+        existing_node_count: "{{ r_existing_nodes.json.count | default(0) }}"
       when: r_existing_nodes is not skipped and r_existing_nodes is not failed
+
+    # ------------------------------------------------------------------
+    # 4a. Delete existing unlinked nodes so we can recreate them cleanly
+    # ------------------------------------------------------------------
+    - name: Delete existing unlinked nodes to allow clean recreation
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_template_nodes/{{ item.id }}/"
+        method: DELETE
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [204, 404]
+      loop: "{{ r_existing_nodes.json.results | default([]) }}"
+      when:
+        - r_existing_nodes is not skipped
+        - r_existing_nodes is not failed
+        - not (nodes_fully_configured | default(false) | bool)
+        - existing_node_count | int > 0
+      ignore_errors: true
 
     # ------------------------------------------------------------------
     # 5. Create Node 1 (root): Apache Service Status Check
@@ -220,7 +253,7 @@
       when:
         - wfjt_id | string | length > 0
         - jt_apache_id | string | length > 0
-        - not (nodes_exist | default(false) | bool)
+        - not (nodes_fully_configured | default(false) | bool)
       ignore_errors: true
 
     - name: Set node1_id
@@ -252,7 +285,7 @@
       when:
         - wfjt_id | string | length > 0
         - jt_analyze_id | string | length > 0
-        - not (nodes_exist | default(false) | bool)
+        - not (nodes_fully_configured | default(false) | bool)
       ignore_errors: true
 
     - name: Set node2_id
@@ -284,7 +317,7 @@
       when:
         - wfjt_id | string | length > 0
         - jt_mattermost_id | string | length > 0
-        - not (nodes_exist | default(false) | bool)
+        - not (nodes_fully_configured | default(false) | bool)
       ignore_errors: true
 
     - name: Set node3_id
@@ -316,7 +349,7 @@
       when:
         - wfjt_id | string | length > 0
         - jt_lightspeed_build_id | string | length > 0
-        - not (nodes_exist | default(false) | bool)
+        - not (nodes_fully_configured | default(false) | bool)
       ignore_errors: true
 
     - name: Set node4_id
@@ -337,16 +370,15 @@
         password: "{{ aap_pass }}"
         force_basic_auth: true
         validate_certs: false
+        headers: "{{ _headers }}"
         body_format: raw
-        headers:
-          Content-Type: application/json
-        body: "{\"id\": {{ node2_id }}}"
+        body: "{{ {'id': node2_id | int} | to_json }}"
         timeout: 30
         status_code: [200, 201, 204]
       when:
         - node1_id is defined
         - node2_id is defined
-        - not (nodes_exist | default(false) | bool)
+        - not (nodes_fully_configured | default(false) | bool)
       ignore_errors: true
 
     # ------------------------------------------------------------------
@@ -360,16 +392,15 @@
         password: "{{ aap_pass }}"
         force_basic_auth: true
         validate_certs: false
+        headers: "{{ _headers }}"
         body_format: raw
-        headers:
-          Content-Type: application/json
-        body: "{\"id\": {{ node3_id }}}"
+        body: "{{ {'id': node3_id | int} | to_json }}"
         timeout: 30
         status_code: [200, 201, 204]
       when:
         - node2_id is defined
         - node3_id is defined
-        - not (nodes_exist | default(false) | bool)
+        - not (nodes_fully_configured | default(false) | bool)
       ignore_errors: true
 
     # ------------------------------------------------------------------
@@ -383,22 +414,21 @@
         password: "{{ aap_pass }}"
         force_basic_auth: true
         validate_certs: false
+        headers: "{{ _headers }}"
         body_format: raw
-        headers:
-          Content-Type: application/json
-        body: "{\"id\": {{ node4_id }}}"
+        body: "{{ {'id': node4_id | int} | to_json }}"
         timeout: 30
         status_code: [200, 201, 204]
       when:
         - node3_id is defined
         - node4_id is defined
-        - not (nodes_exist | default(false) | bool)
+        - not (nodes_fully_configured | default(false) | bool)
       ignore_errors: true
 
     # ------------------------------------------------------------------
-    # 12. Re-fetch nodes if they already existed (need IDs for debug report)
+    # 12. Re-fetch nodes to confirm final state
     # ------------------------------------------------------------------
-    - name: Re-fetch existing nodes to confirm link state
+    - name: Re-fetch nodes to confirm link state
       ansible.builtin.uri:
         url: "{{ aap_url }}/api/controller/v2/workflow_job_template_nodes/?workflow_job_template={{ wfjt_id }}"
         method: GET
@@ -492,10 +522,92 @@
         - r_break_poll is not failed
 
     # ------------------------------------------------------------------
-    # 15. Wait for EDA to auto-trigger "AI Insights" workflow job
-    #     Poll up to 5 minutes (30 retries x 10s) for status=successful
+    # 15. Record when Break Apache finished (to find only NEW wf jobs)
     # ------------------------------------------------------------------
-    - name: Wait for EDA-triggered AI Insights workflow job to appear and complete
+    - name: Get Break Apache job finish time as reference point
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/jobs/{{ break_job_id }}/"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: 200
+      register: r_break_detail
+      when: break_job_id | string | length > 0
+      ignore_errors: true
+
+    - name: Set break_finished_time reference
+      ansible.builtin.set_fact:
+        break_finished: "{{ r_break_detail.json.finished | default('1970-01-01T00:00:00Z') }}"
+      when:
+        - r_break_detail is not skipped
+        - r_break_detail is not failed
+
+    # ------------------------------------------------------------------
+    # 15a. Wait up to 2 min for EDA to trigger a NEW AI Insights wf job
+    # ------------------------------------------------------------------
+    - name: Wait for EDA to trigger a new AI Insights workflow job
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/workflow_jobs/?name__icontains=AI+Insights&order_by=-id"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: 200
+      register: r_eda_poll
+      until: >
+        r_eda_poll.json.count | int > 0 and
+        (r_eda_poll.json.results[0].started | default('1970') > break_finished | default('1970'))
+      retries: 12
+      delay: 10
+      ignore_errors: true
+
+    - name: Set eda_triggered fact
+      ansible.builtin.set_fact:
+        eda_triggered: >-
+          {{
+            r_eda_poll is not failed and
+            r_eda_poll.json.count | int > 0 and
+            (r_eda_poll.json.results[0].started | default('1970') > break_finished | default('1970'))
+          }}
+
+    # ------------------------------------------------------------------
+    # 15b. If EDA did not trigger (EDA down/slow), launch WFJT directly
+    # ------------------------------------------------------------------
+    - name: Directly launch AI Insights WFJT if EDA did not trigger it
+      ansible.builtin.uri:
+        url: "{{ aap_url }}/api/controller/v2/workflow_job_templates/{{ wfjt_id }}/launch/"
+        method: POST
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers: "{{ _headers }}"
+        body_format: json
+        body: {}
+        timeout: 30
+        status_code: [200, 201]
+      register: r_direct_launch
+      when:
+        - wfjt_id | string | length > 0
+        - not (eda_triggered | default(false) | bool)
+      ignore_errors: true
+
+    - name: Set direct_launch_job_id fact
+      ansible.builtin.set_fact:
+        direct_launch_job_id: "{{ r_direct_launch.json.id | default('') }}"
+      when:
+        - r_direct_launch is not skipped
+        - r_direct_launch is not failed
+
+    # ------------------------------------------------------------------
+    # 15c. Poll the running workflow job until complete (EDA or direct)
+    # ------------------------------------------------------------------
+    - name: Poll the AI Insights workflow job until complete
       ansible.builtin.uri:
         url: "{{ aap_url }}/api/controller/v2/workflow_jobs/?name__icontains=AI+Insights&order_by=-id"
         method: GET

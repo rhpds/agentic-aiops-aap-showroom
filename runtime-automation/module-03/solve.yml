@@ -9,11 +9,14 @@
   connection: local
   gather_facts: false
   vars:
-    # Injected by FTL runtime — no defaults needed in production
-    aap_url: "{{ controller_url | default('') }}"
-    aap_user: "{{ controller_username | default('') }}"
-    aap_pass: "{{ controller_password | default('') }}"
-    eda_api_base: "{{ aap_url }}/api/eda/v1"
+    # ── Service URLs and credentials (from runner environment) ───────────────
+    controller_url: "{{ lookup('env', 'CONTROLLER_URL') }}"
+    controller_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    controller_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+    aap_url: "{{ lookup('env', 'CONTROLLER_URL') }}"
+    aap_user: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    aap_pass: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+    eda_api_base: "{{ lookup('env', 'CONTROLLER_URL') }}/api/eda/v1"
     activation_name: "ospf-neighbor"
 
   tasks:

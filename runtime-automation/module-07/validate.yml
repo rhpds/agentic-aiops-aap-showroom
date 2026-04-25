@@ -11,11 +11,15 @@
   connection: local
   gather_facts: false
   vars:
-    student_user: "{{ user | default('') }}"
-    aap_user: "{{ controller_username | default('') }}"
-    aap_pass: "{{ controller_password | default('') }}"
-    aap_api: "{{ controller_url | default('') }}/api/v2"
-    eda_api: "{{ controller_url | default('') }}/api/eda/v1"
+    student_user: "{{ lookup('env', 'USER') | default(user | default('')) }}"
+    # ── Service URLs and credentials (from runner environment) ───────────────
+    controller_url: "{{ lookup('env', 'CONTROLLER_URL') }}"
+    controller_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    controller_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+    aap_user: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    aap_pass: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+    aap_api: "{{ lookup('env', 'CONTROLLER_URL') }}/api/v2"
+    eda_api: "{{ lookup('env', 'CONTROLLER_URL') }}/api/eda/v1"
 
   tasks:
 

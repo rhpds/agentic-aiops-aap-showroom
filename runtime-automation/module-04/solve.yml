@@ -8,11 +8,21 @@
 
 - name: Module 04 - Network Workflow OSPF Challenges Solve
   hosts: localhost
+  connection: local
   gather_facts: false
   vars:
+    # ── Service URLs and credentials (from runner environment) ───────────────
+    controller_url: "{{ lookup('env', 'CONTROLLER_URL') }}"
+    controller_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    controller_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+    # ── Bastion SSH (ProxyJump to reach cisco-rtr1) ──────────────────────────
+    bastion_user: "{{ lookup('env', 'SSH_USERNAME') | default('lab-user') }}"
+    bastion_host: "{{ lookup('env', 'SSH_HOSTNAME') | default('bastion') }}"
+    bastion_port: "{{ lookup('env', 'SSH_PORT') | default('22') }}"
+    # ── Cisco router ────────────────────────────────────────────────────────
     cisco_rtr_host: cisco-rtr1
     cisco_rtr_user: admin
-    cisco_rtr_pass: ansible123!
+    cisco_rtr_pass: "{{ lookup('env', 'CONTROLLER_PASSWORD') | default('ansible123!') }}"
     workflow_name: Network-AIOps-Workflow
     # AAP polling settings
     aap_poll_retries: 18
@@ -31,6 +41,7 @@
         sshpass -p '{{ cisco_rtr_pass }}' ssh \
           -o StrictHostKeyChecking=no \
           -o UserKnownHostsFile=/dev/null \
+          -o ProxyJump={{ bastion_user }}@{{ bastion_host }}:{{ bastion_port }} \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} << 'ENDSSH'
         config t
         int tu 0
@@ -125,6 +136,7 @@
         sshpass -p '{{ cisco_rtr_pass }}' ssh \
           -o StrictHostKeyChecking=no \
           -o UserKnownHostsFile=/dev/null \
+          -o ProxyJump={{ bastion_user }}@{{ bastion_host }}:{{ bastion_port }} \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'show ip ospf neighbor'
       register: r_c1_ospf_verify
@@ -140,6 +152,7 @@
         sshpass -p '{{ cisco_rtr_pass }}' ssh \
           -o StrictHostKeyChecking=no \
           -o UserKnownHostsFile=/dev/null \
+          -o ProxyJump={{ bastion_user }}@{{ bastion_host }}:{{ bastion_port }} \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'show ip ospf neighbor'
       register: r_c1_ospf_wait
@@ -158,6 +171,7 @@
         sshpass -p '{{ cisco_rtr_pass }}' ssh \
           -o StrictHostKeyChecking=no \
           -o UserKnownHostsFile=/dev/null \
+          -o ProxyJump={{ bastion_user }}@{{ bastion_host }}:{{ bastion_port }} \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} << 'ENDSSH'
         config t
         int tu 0
@@ -254,6 +268,7 @@
         sshpass -p '{{ cisco_rtr_pass }}' ssh \
           -o StrictHostKeyChecking=no \
           -o UserKnownHostsFile=/dev/null \
+          -o ProxyJump={{ bastion_user }}@{{ bastion_host }}:{{ bastion_port }} \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'show ip ospf neighbor'
       register: r_c2_ospf_verify
@@ -265,6 +280,7 @@
         sshpass -p '{{ cisco_rtr_pass }}' ssh \
           -o StrictHostKeyChecking=no \
           -o UserKnownHostsFile=/dev/null \
+          -o ProxyJump={{ bastion_user }}@{{ bastion_host }}:{{ bastion_port }} \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'sh ip ospf int tu0 | s Type'
       register: r_c2_ospf_type
@@ -281,6 +297,7 @@
         sshpass -p '{{ cisco_rtr_pass }}' ssh \
           -o StrictHostKeyChecking=no \
           -o UserKnownHostsFile=/dev/null \
+          -o ProxyJump={{ bastion_user }}@{{ bastion_host }}:{{ bastion_port }} \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'show ip ospf neighbor'
       register: r_c2_ospf_wait
@@ -299,6 +316,7 @@
         sshpass -p '{{ cisco_rtr_pass }}' ssh \
           -o StrictHostKeyChecking=no \
           -o UserKnownHostsFile=/dev/null \
+          -o ProxyJump={{ bastion_user }}@{{ bastion_host }}:{{ bastion_port }} \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} << 'ENDSSH'
         config t
         int tu 0
@@ -401,6 +419,7 @@
         sshpass -p '{{ cisco_rtr_pass }}' ssh \
           -o StrictHostKeyChecking=no \
           -o UserKnownHostsFile=/dev/null \
+          -o ProxyJump={{ bastion_user }}@{{ bastion_host }}:{{ bastion_port }} \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'show ip ospf neighbor'
       register: r_c3_ospf_verify
@@ -412,6 +431,7 @@
         sshpass -p '{{ cisco_rtr_pass }}' ssh \
           -o StrictHostKeyChecking=no \
           -o UserKnownHostsFile=/dev/null \
+          -o ProxyJump={{ bastion_user }}@{{ bastion_host }}:{{ bastion_port }} \
           {{ cisco_rtr_user }}@{{ cisco_rtr_host }} \
           'sh ip ospf int tu0 | s Hello'
       register: r_c3_ospf_hello

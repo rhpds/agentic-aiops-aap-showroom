@@ -1,58 +1,89 @@
 ---
-# Module 03 — Debug probe: dumps runner environment so we can fix all playbooks
-- name: Module 03 - Debug probe
+# Module 03 — Section 4: Event Driven Ansible
+# Validation: Checks the "ospf-neighbor" EDA rulebook activation is in Running state.
+- name: Module 03 - EDA ospf-neighbor Activation Validation
   hosts: localhost
   connection: local
-  gather_facts: true
+  gather_facts: false
+  vars:
+    # ── Service URLs and credentials (from runner environment) ───────────────
+    controller_url: "{{ lookup('env', 'CONTROLLER_URL') }}"
+    controller_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    controller_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+    eda_api_base: "{{ lookup('env', 'CONTROLLER_URL') }}/api/eda/v1"
+    activation_name: "ospf-neighbor"
+
   tasks:
-    - name: Dump all vars and env
-      ansible.builtin.debug:
-        msg:
-          ansible_fqdn: "{{ ansible_fqdn | default('unknown') }}"
-          ansible_hostname: "{{ ansible_hostname | default('unknown') }}"
-          controller_url: "{{ controller_url | default('NOT_SET') }}"
-          controller_username: "{{ controller_username | default('NOT_SET') }}"
-          splunk_url: "{{ splunk_url | default('NOT_SET') }}"
-          eda_webhook_url: "{{ eda_webhook_url | default('NOT_SET') }}"
-          user: "{{ user | default('NOT_SET') }}"
-          guid: "{{ guid | default('NOT_SET') }}"
-          all_vars_keys: "{{ vars.keys() | list | sort }}"
 
-    - name: Dump environment variables
-      ansible.builtin.shell: env | sort
-      register: r_env
-      changed_when: false
+    # -------------------------------------------------------
+    # Check 1 — EDA activation "ospf-neighbor" exists
+    # -------------------------------------------------------
+    - name: Query EDA activation by exact name
+      ansible.builtin.uri:
+        url: "{{ eda_api_base }}/activations/?name={{ activation_name }}"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 15
+        status_code: [200]
+      register: r_exact
+      ignore_errors: true
 
-    - name: Show environment
-      ansible.builtin.debug:
-        msg: "{{ r_env.stdout_lines }}"
+    - name: Broader search when exact returns nothing (icontains=ospf)
+      ansible.builtin.uri:
+        url: "{{ eda_api_base }}/activations/?name__icontains=ospf"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 15
+        status_code: [200]
+      register: r_broad
+      when:
+        - r_exact.status | default(0) == 200
+        - (r_exact.json.count | default(0)) == 0
+      ignore_errors: true
 
-    - name: Check /app directory
-      ansible.builtin.shell: ls -la /app/ 2>/dev/null || echo "no /app"
-      register: r_app
-      changed_when: false
+    # -------------------------------------------------------
+    # Build result facts
+    # -------------------------------------------------------
+    - name: Set activation result list
+      ansible.builtin.set_fact:
+        _activation_results: >-
+          {{
+            r_exact.json.results
+            if (r_exact.json.count | default(0)) > 0
+            else (r_broad.json.results | default([]))
+          }}
 
-    - name: Show /app
-      ansible.builtin.debug:
-        msg: "{{ r_app.stdout_lines }}"
+    - name: Set activation status facts
+      ansible.builtin.set_fact:
+        _activation_found: "{{ (_activation_results | length) > 0 }}"
+        _activation_status: "{{ (_activation_results | first).status | lower | default('not_found') }}"
+      when: (_activation_results | length) > 0
 
-    - name: Check extra_vars files
-      ansible.builtin.shell: |
-        find /app /runner /home -name "extra_vars*" -o -name "*vars*.yml" 2>/dev/null | head -20
-        cat /app/extra_vars 2>/dev/null || echo "no /app/extra_vars"
-        cat /runner/env/extravars 2>/dev/null || echo "no /runner/env/extravars"
-      register: r_vars
-      changed_when: false
+    - name: Set activation not found
+      ansible.builtin.set_fact:
+        _activation_found: false
+        _activation_status: "not_found"
+      when: (_activation_results | default([]) | length) == 0
 
-    - name: Show vars files
-      ansible.builtin.debug:
-        msg: "{{ r_vars.stdout_lines }}"
+    - name: Build check boolean
+      ansible.builtin.set_fact:
+        _task1_ok: "{{ _activation_found | bool and _activation_status == 'running' }}"
 
-    - name: Check collections
-      ansible.builtin.shell: ansible-galaxy collection list 2>/dev/null | head -30
-      register: r_coll
-      changed_when: false
-
-    - name: Show collections
-      ansible.builtin.debug:
-        msg: "{{ r_coll.stdout_lines }}"
+    # -------------------------------------------------------
+    # Validate
+    # -------------------------------------------------------
+    - name: Validate ospf-neighbor activation is running
+      rhpds.ftl.validation_check:
+        check: "{{ _task1_ok }}"
+        pass_msg: |
+          Task 1: EDA rulebook activation "ospf-neighbor" exists and is in Running state
+        error_msg: |
+          {{ '[FAIL]' }} Task 1: EDA rulebook activation "ospf-neighbor" —
+          {{ 'NOT FOUND — the activation was not provisioned. Contact your instructor or click Solve.' if not _activation_found | bool
+             else 'status is "' + _activation_status + '" (expected "running") — go to AAP > Automation Decisions > Rulebook Activations, find "OSPF Neighbor", and enable it. Or click Solve to restore it automatically.' }}

@@ -15,9 +15,13 @@
   connection: local
   gather_facts: false
   vars:
-    aap_user: "{{ controller_username | default('admin') }}"
-    aap_pass: "{{ controller_password | default('') }}"
-    aap_url:  "{{ controller_url | default('https://localhost') }}"
+    # ── Service URLs and credentials (from runner environment) ───────────────
+    controller_url: "{{ lookup('env', 'CONTROLLER_URL') }}"
+    controller_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    controller_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+    aap_url: "{{ lookup('env', 'CONTROLLER_URL') }}"
+    aap_user: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    aap_pass: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
     # Seconds to wait after simulation job succeeds before polling for EDA jobs
     eda_settle_delay: 30
     # Timestamp anchor — set once, used to filter jobs created after solve started

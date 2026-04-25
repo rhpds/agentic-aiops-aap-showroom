@@ -19,10 +19,14 @@
   connection: local
   gather_facts: false
   vars:
-    aap_url: "{{ controller_url | default('') }}"
-    aap_user: "{{ controller_username | default('admin') }}"
-    aap_pass: "{{ controller_password | default('') }}"
-    aap_api: "{{ controller_url | default('') | regex_replace('/$', '') }}/api/controller/v2"
+    # ── Service URLs and credentials (from runner environment) ───────────────
+    controller_url: "{{ lookup('env', 'CONTROLLER_URL') }}"
+    controller_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    controller_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+    aap_url: "{{ lookup('env', 'CONTROLLER_URL') }}"
+    aap_user: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    aap_pass: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+    aap_api: "{{ lookup('env', 'CONTROLLER_URL') | regex_replace('/$', '') }}/api/controller/v2"
     # Prompt text sent as the survey answer
     remediation_prompt: >-
       For all hosts, use become true, Remove line that contains
