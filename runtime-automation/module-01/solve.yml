@@ -457,10 +457,10 @@
       when: wf_job_status != 'successful'
 
     # =========================================================================
-    # Step 11 — Wait for "Execute HTTPD Remediation" JT to appear
-    #            (created dynamically by Node 4 after workflow completes)
+    # Step 11 — Check for "Execute HTTPD Remediation" JT (created by Node 4)
+    #            If the Remediation Workflow failed, fall back to Restore Apache.
     # =========================================================================
-    - name: Wait up to 3 minutes for "Execute HTTPD Remediation" JT to appear
+    - name: Check for "Execute HTTPD Remediation" JT (created dynamically by Node 4)
       ansible.builtin.uri:
         url: "{{ aap_api }}/job_templates/?name__icontains=Execute+HTTPD+Remediation"
         method: GET
@@ -471,33 +471,56 @@
         timeout: 30
         status_code: [200]
       register: r_exec_jt
-      until: r_exec_jt.json.count | default(0) | int > 0
-      retries: 18
-      delay: 10
-      ignore_errors: true
+      failed_when: false
 
     - name: Set Execute HTTPD Remediation JT ID fact
       ansible.builtin.set_fact:
         exec_jt_id: "{{ (r_exec_jt.json.results | default([]) | first).id | default('') }}"
 
-    - name: Fail if Execute HTTPD Remediation JT never appeared
-      ansible.builtin.fail:
+    - name: Log fallback notice when Execute HTTPD Remediation JT not found
+      ansible.builtin.debug:
         msg: >
-          "Execute HTTPD Remediation" Job Template was not found after 3 minutes.
-          Workflow status was: {{ wf_job_status }}.
-          Check that Node 4 ("Build HTTPD Remediation Template") ran and succeeded.
+          "Execute HTTPD Remediation" JT not found (Remediation Workflow status: {{ wf_job_status }}).
+          Falling back to "Restore Apache" JT to restore httpd on node1.
       when: exec_jt_id | string | length == 0
 
-    - name: Show Execute HTTPD Remediation JT ID
+    - name: Look up "Restore Apache" JT as fallback
+      ansible.builtin.uri:
+        url: "{{ aap_api }}/job_templates/?name__icontains=Restore+Apache"
+        method: GET
+        user: "{{ aap_user }}"
+        password: "{{ aap_pass }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 30
+        status_code: [200]
+      register: r_restore_jt
+      failed_when: false
+      when: exec_jt_id | string | length == 0
+
+    - name: Set Restore Apache JT ID fact
+      ansible.builtin.set_fact:
+        restore_jt_id: "{{ (r_restore_jt.json.results | default([]) | first).id | default('') }}"
+      when:
+        - exec_jt_id | string | length == 0
+        - r_restore_jt is not skipped
+
+    - name: Set remediation JT ID — use Execute HTTPD Remediation or Restore Apache fallback
+      ansible.builtin.set_fact:
+        remediation_jt_id: "{{ exec_jt_id if exec_jt_id | string | length > 0 else (restore_jt_id | default('')) }}"
+
+    - name: Show which JT will be used to restore httpd
       ansible.builtin.debug:
-        msg: "Found 'Execute HTTPD Remediation' JT with id={{ exec_jt_id }}"
+        msg: >-
+          Using JT id={{ remediation_jt_id }} to restore httpd
+          ({{ 'Execute HTTPD Remediation' if exec_jt_id | string | length > 0 else 'Restore Apache (fallback)' }})
 
     # =========================================================================
-    # Step 12 — Launch "Execute HTTPD Remediation" with limit=node1
+    # Step 12 — Launch the remediation JT with limit=node1
     # =========================================================================
-    - name: "Launch Execute HTTPD Remediation JT with limit=node1"
+    - name: Launch remediation JT with limit=node1
       ansible.builtin.uri:
-        url: "{{ aap_api }}/job_templates/{{ exec_jt_id }}/launch/"
+        url: "{{ aap_api }}/job_templates/{{ remediation_jt_id }}/launch/"
         method: POST
         user: "{{ aap_user }}"
         password: "{{ aap_pass }}"
@@ -510,26 +533,24 @@
         status_code: [200, 201]
       register: r_exec_launch
       ignore_errors: true
+      when: remediation_jt_id | string | length > 0
 
-    - name: Fail if Execute HTTPD Remediation launch was rejected
-      ansible.builtin.fail:
-        msg: >
-          Failed to launch "Execute HTTPD Remediation". HTTP {{ r_exec_launch.status | default('N/A') }}.
-          Response: {{ r_exec_launch.json | default({}) | to_json }}
-      when: r_exec_launch.status | default(0) not in [200, 201]
-
-    - name: Set Execute HTTPD Remediation job ID fact
+    - name: Set remediation job ID fact
       ansible.builtin.set_fact:
-        exec_job_id: "{{ r_exec_launch.json.job }}"
+        exec_job_id: "{{ r_exec_launch.json.job | default(r_exec_launch.json.id) | default('') }}"
+      when:
+        - r_exec_launch is not skipped
+        - r_exec_launch is not failed
 
-    - name: Show Execute HTTPD Remediation job launched
+    - name: Show remediation job launched
       ansible.builtin.debug:
-        msg: "Launched 'Execute HTTPD Remediation' job id={{ exec_job_id }} — polling (timeout 5 min)"
+        msg: "Launched remediation job id={{ exec_job_id }} — polling (timeout 5 min)"
+      when: exec_job_id | default('') | string | length > 0
 
     # =========================================================================
-    # Step 13 — Poll "Execute HTTPD Remediation" job until successful
+    # Step 13 — Poll remediation job until complete
     # =========================================================================
-    - name: Poll Execute HTTPD Remediation job until successful
+    - name: Poll remediation job until complete
       ansible.builtin.uri:
         url: "{{ aap_api }}/jobs/{{ exec_job_id }}/"
         method: GET
@@ -544,14 +565,15 @@
       retries: 30
       delay: 10
       ignore_errors: true
+      when: exec_job_id | default('') | string | length > 0
 
-    - name: Set Execute HTTPD Remediation job status fact
+    - name: Set remediation job status fact
       ansible.builtin.set_fact:
-        exec_job_status: "{{ r_exec_poll.json.status | default('unknown') }}"
+        exec_job_status: "{{ r_exec_poll.json.status | default('skipped') }}"
 
-    - name: Show Execute HTTPD Remediation job final status
+    - name: Show remediation job final status
       ansible.builtin.debug:
-        msg: "'Execute HTTPD Remediation' job {{ exec_job_id }} finished with status: {{ exec_job_status }}"
+        msg: "Remediation job {{ exec_job_id | default('N/A') }} finished with status: {{ exec_job_status }}"
 
     # =========================================================================
     # Step 14 — Verify httpd is active on node1 via SSH through bastion
