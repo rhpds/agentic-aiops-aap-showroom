@@ -110,29 +110,22 @@
           {{ (r_ai_ticket.json.count | default(0) | int) >= 1 }}
 
     # -------------------------------------------------------
-    # Validate — Challenge 1
+    # Validate — all 4 tasks in one check
     # -------------------------------------------------------
-    - name: Validate Challenge 1 - AD Account Creation Event
+    - name: Validate all tasks
       validation_check:
-        check: "{{ _task1_ok and _task2_ok }}"
+        check: "{{ _task1_ok and _task2_ok and _task3_ok and _task4_ok }}"
         pass_msg: |
-          Challenge 1 passed.
-          Task 1: Simulate AD Account Creation job completed successfully.
-          Task 2: Windows Create Mattermost Ticket job completed successfully (EDA-triggered).
+          Challenge 1 — AD Account Creation Event:
+            Task 1: Simulate AD Account Creation job completed successfully
+            Task 2: Windows Create Mattermost Ticket job completed successfully (EDA-triggered)
+          Challenge 2 — Firewall Event with AI Enrichment:
+            Task 3: Simulate Windows Firewall Toggle job completed successfully
+            Task 4: Windows AI Analyze and Ticket job completed successfully (EDA + Granite LLM)
         error_msg: |
-          {{ 'Task 1: Simulate AD Account Creation job — ok' if _task1_ok else 'Task 1: Simulate AD Account Creation job NOT found as successful — run the job template from the AAP controller or click Solve.' }}
-          {{ 'Task 2: Windows Create Mattermost Ticket job — ok' if _task2_ok else 'Task 2: Windows Create Mattermost Ticket job NOT found as successful — EDA may still be processing. Wait 60 seconds and click Validate again. If the problem persists, verify the Windows Events rulebook activation is Running in EDA.' }}
-
-    # -------------------------------------------------------
-    # Validate — Challenge 2
-    # -------------------------------------------------------
-    - name: Validate Challenge 2 - Windows Firewall Event with AI Enrichment
-      validation_check:
-        check: "{{ _task3_ok and _task4_ok }}"
-        pass_msg: |
-          Challenge 2 passed.
-          Task 3: Simulate Windows Firewall Toggle job completed successfully.
-          Task 4: Windows AI Analyze and Ticket job completed successfully (EDA + Granite LLM).
-        error_msg: |
-          {{ 'Task 3: Simulate Windows Firewall Toggle job — ok' if _task3_ok else 'Task 3: Simulate Windows Firewall Toggle job NOT found as successful — run the job template from the AAP controller or click Solve.' }}
-          {{ 'Task 4: Windows AI Analyze and Ticket job — ok' if _task4_ok else 'Task 4: Windows AI Analyze and Ticket job NOT found as successful — Granite LLM inference can take up to 5 minutes. Wait and click Validate again. If the problem persists, verify the EDA Windows Events activation is Running and the AI job template can reach the model endpoint.' }}
+          Challenge 1 — AD Account Creation Event:
+            {{ '[PASS]' if _task1_ok else '[FAIL]' }} Task 1: Simulate AD Account Creation job — {{ 'ok' if _task1_ok else 'not found — click Solve or run the job template from AAP' }}
+            {{ '[PASS]' if _task2_ok else '[FAIL]' }} Task 2: Windows Create Mattermost Ticket job — {{ 'ok' if _task2_ok else 'not found — EDA may still be processing. Wait 60 s and click Validate again. If the problem persists, verify the Windows Events rulebook activation is Running in EDA.' }}
+          Challenge 2 — Firewall Event with AI Enrichment:
+            {{ '[PASS]' if _task3_ok else '[FAIL]' }} Task 3: Simulate Windows Firewall Toggle job — {{ 'ok' if _task3_ok else 'not found — click Solve or run the job template from AAP' }}
+            {{ '[PASS]' if _task4_ok else '[FAIL]' }} Task 4: Windows AI Analyze and Ticket job — {{ 'ok' if _task4_ok else 'not found — Granite LLM inference can take up to 5 min. Wait and click Validate again.' }}
