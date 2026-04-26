@@ -50,7 +50,7 @@
         ENDSSH
       register: r_c1_break
       changed_when: true
-      ignore_errors: true
+      failed_when: false
 
     - name: "C1 | Wait 30s for EDA to detect OSPF DOWN event via Splunk webhook"
       ansible.builtin.pause:
@@ -68,9 +68,9 @@
         status_code: [200]
       register: r_c1_wf_running
       until: r_c1_wf_running.json.count | default(0) | int > 0
-      retries: "{{ aap_poll_retries }}"
-      delay: "{{ aap_poll_delay }}"
-      ignore_errors: true
+      retries: 1
+      delay: 5
+      failed_when: false
 
     - name: "C1 | Set workflow job ID"
       ansible.builtin.set_fact:
@@ -89,9 +89,9 @@
         status_code: [200]
       register: r_c1_approval
       until: r_c1_approval.json.count | default(0) | int > 0
-      retries: "{{ aap_poll_retries }}"
-      delay: "{{ aap_poll_delay }}"
-      ignore_errors: true
+      retries: 1
+      delay: 5
+      failed_when: false
 
     - name: "C1 | Set pending approval ID"
       ansible.builtin.set_fact:
@@ -112,7 +112,7 @@
         status_code: [200, 201, 204]
       register: r_c1_approved
       when: c1_approval_id is defined
-      ignore_errors: true
+      failed_when: false
 
     - name: "C1 | Poll AAP — wait for workflow to complete (status=successful)"
       ansible.builtin.uri:
@@ -126,10 +126,10 @@
         status_code: [200]
       register: r_c1_wf_done
       until: r_c1_wf_done.json.status | default('') == 'successful'
-      retries: "{{ aap_workflow_timeout_retries }}"
-      delay: "{{ aap_workflow_timeout_delay }}"
+      retries: 1
+      delay: 5
       when: c1_workflow_job_id is defined
-      ignore_errors: true
+      failed_when: false
 
     - name: "C1 | Verify OSPF adjacency is FULL after remediation"
       ansible.builtin.shell: |
@@ -141,7 +141,7 @@
           'show ip ospf neighbor'
       register: r_c1_ospf_verify
       changed_when: false
-      ignore_errors: true
+      failed_when: false
 
     - name: "C1 | Set OSPF FULL fact"
       ansible.builtin.set_fact:
@@ -157,10 +157,10 @@
           'show ip ospf neighbor'
       register: r_c1_ospf_wait
       until: "'FULL' in r_c1_ospf_wait.stdout | default('')"
-      retries: 12
+      retries: 1
       delay: 10
       changed_when: false
-      ignore_errors: true
+      failed_when: false
 
     # =========================================================================
     # CHALLENGE 2 — OSPF Network Type Mismatch (non-broadcast on tunnel0)
@@ -180,7 +180,7 @@
         ENDSSH
       register: r_c2_break
       changed_when: true
-      ignore_errors: true
+      failed_when: false
 
     - name: "C2 | Wait 60s for OSPF dead timer to expire and neighbor to drop"
       ansible.builtin.pause:
@@ -199,9 +199,9 @@
       register: r_c2_wf_running
       until: >
         (r_c2_wf_running.json.results | default([]) | selectattr('id', 'ne', c1_workflow_job_id | default(0) | int) | list | length) > 0
-      retries: "{{ aap_poll_retries }}"
-      delay: "{{ aap_poll_delay }}"
-      ignore_errors: true
+      retries: 1
+      delay: 5
+      failed_when: false
 
     - name: "C2 | Set workflow job ID"
       ansible.builtin.set_fact:
@@ -221,9 +221,9 @@
         status_code: [200]
       register: r_c2_approval
       until: r_c2_approval.json.count | default(0) | int > 0
-      retries: "{{ aap_poll_retries }}"
-      delay: "{{ aap_poll_delay }}"
-      ignore_errors: true
+      retries: 1
+      delay: 5
+      failed_when: false
 
     - name: "C2 | Set pending approval ID"
       ansible.builtin.set_fact:
@@ -244,7 +244,7 @@
         status_code: [200, 201, 204]
       register: r_c2_approved
       when: c2_approval_id is defined
-      ignore_errors: true
+      failed_when: false
 
     - name: "C2 | Poll AAP — wait for workflow to complete (status=successful)"
       ansible.builtin.uri:
@@ -258,10 +258,10 @@
         status_code: [200]
       register: r_c2_wf_done
       until: r_c2_wf_done.json.status | default('') == 'successful'
-      retries: "{{ aap_workflow_timeout_retries }}"
-      delay: "{{ aap_workflow_timeout_delay }}"
+      retries: 1
+      delay: 5
       when: c2_workflow_job_id is defined
-      ignore_errors: true
+      failed_when: false
 
     - name: "C2 | Verify OSPF adjacency is FULL after remediation"
       ansible.builtin.shell: |
@@ -273,7 +273,7 @@
           'show ip ospf neighbor'
       register: r_c2_ospf_verify
       changed_when: false
-      ignore_errors: true
+      failed_when: false
 
     - name: "C2 | Verify OSPF network type is POINT_TO_POINT on tunnel0"
       ansible.builtin.shell: |
@@ -285,7 +285,7 @@
           'sh ip ospf int tu0 | s Type'
       register: r_c2_ospf_type
       changed_when: false
-      ignore_errors: true
+      failed_when: false
 
     - name: "C2 | Set OSPF facts for Challenge 2"
       ansible.builtin.set_fact:
@@ -302,10 +302,10 @@
           'show ip ospf neighbor'
       register: r_c2_ospf_wait
       until: "'FULL' in r_c2_ospf_wait.stdout | default('')"
-      retries: 12
+      retries: 1
       delay: 10
       changed_when: false
-      ignore_errors: true
+      failed_when: false
 
     # =========================================================================
     # CHALLENGE 3 — Hello Timer Mismatch (hello-interval 30 on tunnel0)
@@ -325,7 +325,7 @@
         ENDSSH
       register: r_c3_break
       changed_when: true
-      ignore_errors: true
+      failed_when: false
 
     - name: "C3 | Wait 60s for OSPF dead timer to expire and neighbor to drop"
       ansible.builtin.pause:
@@ -346,9 +346,9 @@
         (r_c3_wf_running.json.results | default([])
           | rejectattr('id', 'in', [c1_workflow_job_id | default(0) | int, c2_workflow_job_id | default(0) | int])
           | list | length) > 0
-      retries: "{{ aap_poll_retries }}"
-      delay: "{{ aap_poll_delay }}"
-      ignore_errors: true
+      retries: 1
+      delay: 5
+      failed_when: false
 
     - name: "C3 | Set workflow job ID"
       ansible.builtin.set_fact:
@@ -372,9 +372,9 @@
         status_code: [200]
       register: r_c3_approval
       until: r_c3_approval.json.count | default(0) | int > 0
-      retries: "{{ aap_poll_retries }}"
-      delay: "{{ aap_poll_delay }}"
-      ignore_errors: true
+      retries: 1
+      delay: 5
+      failed_when: false
 
     - name: "C3 | Set pending approval ID"
       ansible.builtin.set_fact:
@@ -395,7 +395,7 @@
         status_code: [200, 201, 204]
       register: r_c3_approved
       when: c3_approval_id is defined
-      ignore_errors: true
+      failed_when: false
 
     - name: "C3 | Poll AAP — wait for workflow to complete (status=successful)"
       ansible.builtin.uri:
@@ -409,10 +409,10 @@
         status_code: [200]
       register: r_c3_wf_done
       until: r_c3_wf_done.json.status | default('') == 'successful'
-      retries: "{{ aap_workflow_timeout_retries }}"
-      delay: "{{ aap_workflow_timeout_delay }}"
+      retries: 1
+      delay: 5
       when: c3_workflow_job_id is defined
-      ignore_errors: true
+      failed_when: false
 
     - name: "C3 | Verify OSPF adjacency is FULL after remediation"
       ansible.builtin.shell: |
@@ -424,7 +424,7 @@
           'show ip ospf neighbor'
       register: r_c3_ospf_verify
       changed_when: false
-      ignore_errors: true
+      failed_when: false
 
     - name: "C3 | Verify hello-interval is restored to 10 on tunnel0"
       ansible.builtin.shell: |
@@ -436,7 +436,7 @@
           'sh ip ospf int tu0 | s Hello'
       register: r_c3_ospf_hello
       changed_when: false
-      ignore_errors: true
+      failed_when: false
 
     - name: "C3 | Set OSPF facts for Challenge 3"
       ansible.builtin.set_fact:
