@@ -1,0 +1,17 @@
+---
+# Module 05 - Section 8: Summary and Call to Actions
+# This module is a summary page with no student exercises.
+# Validation always passes — congratulations checkpoint only.
+
+- name: Module 05 - Summary Validation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Module 05 summary — always passes
+      validation_check:
+        check: true
+        pass_msg: |
+          Congratulations! You have completed all sections of the lab.
+          Module 05 is a summary page — no exercises to validate.
+        error_msg: ""

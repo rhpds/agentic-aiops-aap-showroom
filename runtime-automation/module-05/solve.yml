@@ -1,0 +1,13 @@
+---
+# Module 05 - Section 8: Summary and Call to Actions
+# This module is a summary page with no student exercises.
+# Solve is a no-op — nothing to automate.
+
+- name: Module 05 - Summary (no-op solve)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Report solve status
+      ansible.builtin.debug:
+        msg: "Module 05 is a summary page with no exercises. Solve complete."

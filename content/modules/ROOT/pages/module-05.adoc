@@ -415,3 +415,18 @@ Are you ready to implement now?
 Thank you for completing the {lab_name}! We hope you've gained valuable insights into how AI and automation can work together to create intelligent, self-healing infrastructure.
 
 image::aap_logo.png[aap_logo,55%,55%, link="_images/aap_logo.png", window=blank]
+
+ifeval::["{run_e2e_load_test}" == "true"]
+=====
+.End-to-End Validation (RHDP Only) ✅
+[%collapsible]
+====
+++++
+<div class="solve-button-placeholder" data-module="module-05"></div>
+++++
+++++
+<div class="validate-button-placeholder" data-module="module-05"></div>
+++++
+====
+=====
+endif::[]
