@@ -50,7 +50,7 @@
         validate_certs: false
         status_code: [200, 404]
       register: r_tcp_check
-      ignore_errors: true
+      failed_when: false
 
     - name: Create Splunk TCP data input on port 5514 (skip if exists)
       ansible.builtin.uri:
@@ -68,7 +68,7 @@
         follow_redirects: all
       register: r_tcp_create
       when: r_tcp_check.status | default(404) != 200
-      ignore_errors: true
+      failed_when: false
 
     - name: Record TCP input result
       ansible.builtin.set_fact:
@@ -166,8 +166,8 @@
         shut
         end'
       register: r_tun_shut
-      changed_when: true
-      ignore_errors: true
+      changed_when: r_tun_shut.rc | default(1) == 0
+      failed_when: false
 
     - name: Wait 15 seconds for OSPF DOWN syslog to reach Splunk
       ansible.builtin.pause:
@@ -187,7 +187,7 @@
         validate_certs: false
         status_code: [200, 404]
       register: r_alert_check
-      ignore_errors: true
+      failed_when: false
 
     - name: Create Splunk saved alert "ospf-neighbor" (skip if exists)
       ansible.builtin.uri:
@@ -215,7 +215,7 @@
         follow_redirects: all
       register: r_alert_create
       when: r_alert_check.status | default(404) != 200
-      ignore_errors: true
+      failed_when: false
 
     - name: Record saved alert result
       ansible.builtin.set_fact:
@@ -239,8 +239,8 @@
         no shut
         end'
       register: r_tun_restore
-      changed_when: true
-      ignore_errors: true
+      changed_when: r_tun_restore.rc | default(1) == 0
+      failed_when: false
 
     - name: Wait 30 seconds for OSPF to reconverge to FULL
       ansible.builtin.pause:
