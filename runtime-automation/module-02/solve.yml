@@ -30,9 +30,9 @@
     rtr_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') | default('ansible123!') }}"
     rtr_host: "cisco-rtr1"
     # ── Bastion SSH (ProxyJump to reach cisco-rtr1) ──────────────────────────
-    bastion_user: "{{ lookup('env', 'SSH_USERNAME') | default('lab-user') }}"
-    bastion_host: "{{ lookup('env', 'SSH_HOSTNAME') | default('bastion') }}"
-    bastion_port: "{{ lookup('env', 'SSH_PORT') | default('22') }}"
+    bastion_user: "{{ lookup('env', 'SSH_USERNAME') | default('lab-user', true) }}"
+    bastion_host: "{{ lookup('env', 'SSH_HOSTNAME') | default('bastion', true) }}"
+    bastion_port: "{{ lookup('env', 'SSH_PORT') | default('22', true) }}"
 
   tasks:
 
@@ -64,7 +64,8 @@
           Content-Type: "application/x-www-form-urlencoded"
         validate_certs: false
         timeout: 30
-        status_code: [200, 201]
+        status_code: [200, 201, 303]
+        follow_redirects: all
       register: r_tcp_create
       when: r_tcp_check.status | default(404) != 200
       ignore_errors: true
@@ -73,7 +74,7 @@
       ansible.builtin.set_fact:
         tcp_input_ok: >-
           {{ (r_tcp_check.status | default(404) == 200) or
-             (r_tcp_create.status | default(0) in [200, 201]) }}
+             (r_tcp_create.status | default(0) in [200, 201, 303]) }}
 
     # ══════════════════════════════════════════════════════════════════════════
     # TASK 2 — Run "Network-Router-Setup" AAP job template
@@ -210,7 +211,8 @@
           Content-Type: "application/x-www-form-urlencoded"
         validate_certs: false
         timeout: 30
-        status_code: [200, 201]
+        status_code: [200, 201, 303]
+        follow_redirects: all
       register: r_alert_create
       when: r_alert_check.status | default(404) != 200
       ignore_errors: true
@@ -219,7 +221,7 @@
       ansible.builtin.set_fact:
         splunk_alert_ok: >-
           {{ (r_alert_check.status | default(404) == 200) or
-             (r_alert_create.status | default(0) in [200, 201]) }}
+             (r_alert_create.status | default(0) in [200, 201, 303]) }}
 
     # ══════════════════════════════════════════════════════════════════════════
     # TASK 5 — Restore tunnel0 on cisco-rtr1 (no shut) so OSPF returns FULL

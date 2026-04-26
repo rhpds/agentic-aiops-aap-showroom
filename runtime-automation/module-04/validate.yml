@@ -17,9 +17,9 @@
     controller_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
     controller_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
     # ── Bastion SSH (ProxyJump to reach cisco-rtr1) ──────────────────────────
-    bastion_user: "{{ lookup('env', 'SSH_USERNAME') | default('lab-user') }}"
-    bastion_host: "{{ lookup('env', 'SSH_HOSTNAME') | default('bastion') }}"
-    bastion_port: "{{ lookup('env', 'SSH_PORT') | default('22') }}"
+    bastion_user: "{{ lookup('env', 'SSH_USERNAME') | default('lab-user', true) }}"
+    bastion_host: "{{ lookup('env', 'SSH_HOSTNAME') | default('bastion', true) }}"
+    bastion_port: "{{ lookup('env', 'SSH_PORT') | default('22', true) }}"
     # ── Cisco router ────────────────────────────────────────────────────────
     cisco_rtr_host: cisco-rtr1
     cisco_rtr_user: admin
