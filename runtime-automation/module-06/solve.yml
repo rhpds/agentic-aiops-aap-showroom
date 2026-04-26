@@ -34,7 +34,7 @@
     # ------------------------------------------------------------------ #
     - name: Capture solve start timestamp
       ansible.builtin.set_fact:
-        solve_epoch: "{{ (ansible_date_time.epoch | int) }}"
+        solve_epoch: "{{ (now(utc=true) | int) }}"
 
     # ================================================================== #
     #  CHALLENGE 1 — AD Account Creation Event                           #
