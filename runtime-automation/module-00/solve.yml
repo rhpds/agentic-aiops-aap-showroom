@@ -546,9 +546,14 @@
         - r_break_detail is not failed
 
     # ------------------------------------------------------------------
-    # 15a. Wait up to 2 min for EDA to trigger a NEW AI Insights wf job
+    # 15a. Give EDA 30s to detect the Apache failure, then check once.
+    #      If EDA did not trigger, step 15b launches the WFJT directly.
     # ------------------------------------------------------------------
-    - name: Wait for EDA to trigger a new AI Insights workflow job
+    - name: Pause 30s for EDA to detect the Apache failure
+      ansible.builtin.pause:
+        seconds: 30
+
+    - name: Check if EDA triggered a new AI Insights workflow job
       ansible.builtin.uri:
         url: "{{ aap_url }}/api/controller/v2/workflow_jobs/?name__icontains=AI+Insights&order_by=-id"
         method: GET
@@ -559,12 +564,7 @@
         timeout: 30
         status_code: 200
       register: r_eda_poll
-      until: >
-        r_eda_poll.json.count | int > 0 and
-        (r_eda_poll.json.results[0].started | default('1970') > break_finished | default('1970'))
-      retries: 12
-      delay: 10
-      ignore_errors: true
+      failed_when: false
 
     - name: Set eda_triggered fact
       ansible.builtin.set_fact:
