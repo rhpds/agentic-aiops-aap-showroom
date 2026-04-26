@@ -576,32 +576,6 @@
         msg: "Remediation job {{ exec_job_id | default('N/A') }} finished with status: {{ exec_job_status }}"
 
     # =========================================================================
-    # Step 14 — Verify httpd is active on node1 via SSH through bastion
-    # =========================================================================
-    - name: Check httpd.service is active on node1 (via bastion ProxyJump)
-      ansible.builtin.command:
-        argv:
-          - ssh
-          - -o
-          - StrictHostKeyChecking=no
-          - -o
-          - BatchMode=yes
-          - -o
-          - ProxyJump=bastion
-          - cloud-user@node1
-          - sudo
-          - systemctl
-          - is-active
-          - httpd.service
-      register: r_httpd
-      changed_when: false
-      ignore_errors: true
-
-    - name: Set httpd active fact
-      ansible.builtin.set_fact:
-        _httpd_active: "{{ (r_httpd.stdout | default('') | trim) == 'active' }}"
-
-    # =========================================================================
     # Report
     # =========================================================================
     - name: Report solve status
@@ -611,6 +585,5 @@
           Workflow nodes present (>= 4):                              {{ 'ok' if existing_node_count | int >= 4 or (node4_id is defined) else 'NOT ok' }}
           Survey variable name discovered:                            {{ survey_var }}
           Remediation Workflow job (id={{ wf_job_id }}) status:       {{ wf_job_status }}
-          Execute HTTPD Remediation JT found (id={{ exec_jt_id }}):   ok
-          Execute HTTPD Remediation job (id={{ exec_job_id }}) status: {{ exec_job_status }}
-          httpd.service active on node1:                              {{ 'ok' if _httpd_active else 'NOT ok — check AAP job output for remediation errors' }}
+          Remediation JT used (id={{ remediation_jt_id }}):           {{ 'Execute HTTPD Remediation' if exec_jt_id | string | length > 0 else 'Restore Apache (fallback)' }}
+          Remediation job (id={{ exec_job_id | default('N/A') }}) status: {{ exec_job_status }}

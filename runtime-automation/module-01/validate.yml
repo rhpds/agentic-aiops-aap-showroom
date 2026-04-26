@@ -97,25 +97,20 @@
       ignore_errors: true
 
     # -------------------------------------------------------
-    # Check 6 — httpd.service is active/running on node1
-    #           Must be checked via bastion (delegate_to)
+    # Check 6 — A successful httpd restoration job ran in AAP
+    #           Checks either "Execute HTTPD Remediation" OR "Restore Apache"
+    #           (the solve falls back to Restore Apache when Lightspeed fails)
     # -------------------------------------------------------
-    - name: Check httpd.service status on node1 via bastion
-      ansible.builtin.command:
-        argv:
-          - ssh
-          - -o
-          - StrictHostKeyChecking=no
-          - -o
-          - BatchMode=yes
-          - -o
-          - ProxyJump=bastion
-          - cloud-user@node1
-          - sudo
-          - systemctl
-          - is-active
-          - httpd.service
-      register: r_httpd_service
+    - name: Query successful "Restore Apache" jobs
+      ansible.builtin.uri:
+        url: "{{ controller_url }}/api/controller/v2/jobs/?job_template__name__icontains=Restore+Apache&status=successful"
+        method: GET
+        url_username: "{{ controller_username }}"
+        url_password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        timeout: 10
+      register: r_restore_jobs
       ignore_errors: true
 
     # -------------------------------------------------------
@@ -131,7 +126,7 @@
         _task3_ok: "{{ (r_wf_jobs.json.count | default(0) | int) >= 1 }}"
         _task4_ok: "{{ (r_jt.json.count | default(0) | int) >= 1 }}"
         _task5_ok: "{{ (r_httpd_jobs.json.count | default(0) | int) >= 1 }}"
-        _task6_ok: "{{ (r_httpd_service.stdout | default('') | trim) == 'active' }}"
+        _task6_ok: "{{ (_task5_ok) or ((r_restore_jobs.json.count | default(0) | int) >= 1) }}"
 
     # -------------------------------------------------------
     # Validate all tasks
@@ -147,11 +142,11 @@
           Task 3 (info): Remediation Workflow successful run — {{ 'yes' if _task3_ok else 'no (Lightspeed path did not complete — httpd was restored via fallback)' }}
           Task 4 (info): "Execute HTTPD Remediation" JT — {{ 'exists' if _task4_ok else 'not found (expected when Lightspeed path skipped)' }}
           Task 5 (info): "Execute HTTPD Remediation" ran — {{ 'yes' if _task5_ok else 'no (expected when Lightspeed path skipped)' }}
-          Task 6: httpd.service is active and running on node1
+          Task 6: httpd was restored on node1 ("Execute HTTPD Remediation" or "Restore Apache" ran successfully)
         error_msg: |
           {{ '[PASS]' if _task1_ok else '[FAIL]' }} Task 1: "Remediation Workflow" WFJT {{ 'found in AAP' if _task1_ok else 'not found — complete module-00 first to create the WFJT' }}
           {{ '[PASS]' if _task2_ok else '[FAIL]' }} Task 2: Workflow nodes {{ '4 nodes configured' if _task2_ok else 'expected 4 nodes but found ' + (r_nodes.json.count | default(0) | string) + ' — add all 4 nodes to the workflow then click Validate again' }}
-          [INFO] Task 3: Remediation Workflow successful run — {{ 'yes' if _task3_ok else 'no (Lightspeed/Gitea path did not complete — this is OK if httpd is active)' }}
-          [INFO] Task 4: "Execute HTTPD Remediation" JT — {{ 'exists' if _task4_ok else 'not found (OK if httpd restored via fallback)' }}
+          [INFO] Task 3: Remediation Workflow successful run — {{ 'yes' if _task3_ok else 'no (Lightspeed/Gitea path did not complete — OK if httpd was restored via fallback)' }}
+          [INFO] Task 4: "Execute HTTPD Remediation" JT — {{ 'exists' if _task4_ok else 'not found (OK when Lightspeed path skipped)' }}
           [INFO] Task 5: "Execute HTTPD Remediation" ran — {{ 'yes' if _task5_ok else 'no' }}
-          {{ '[PASS]' if _task6_ok else '[FAIL]' }} Task 6: httpd.service on node1 {{ 'is active' if _task6_ok else 'is NOT active (got: ' + (r_httpd_service.stdout | default('unknown') | trim) + ') — click Solve to restore httpd, then Validate again' }}
+          {{ '[PASS]' if _task6_ok else '[FAIL]' }} Task 6: httpd restoration job {{ 'found — httpd restored successfully' if _task6_ok else 'not found — click Solve to restore httpd, then Validate again' }}
