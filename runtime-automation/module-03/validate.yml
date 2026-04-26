@@ -79,7 +79,7 @@
     # Validate
     # -------------------------------------------------------
     - name: Validate ospf-neighbor activation is running
-      rhpds.ftl.validation_check:
+      validation_check:
         check: "{{ _task1_ok }}"
         pass_msg: |
           Task 1: EDA rulebook activation "ospf-neighbor" exists and is in Running state

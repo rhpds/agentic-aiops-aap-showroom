@@ -113,7 +113,7 @@
     # Validate — Challenge 1
     # -------------------------------------------------------
     - name: Validate Challenge 1 - AD Account Creation Event
-      rhpds.ftl.validation_check:
+      validation_check:
         check: "{{ _task1_ok and _task2_ok }}"
         pass_msg: |
           Challenge 1 passed.
@@ -127,7 +127,7 @@
     # Validate — Challenge 2
     # -------------------------------------------------------
     - name: Validate Challenge 2 - Windows Firewall Event with AI Enrichment
-      rhpds.ftl.validation_check:
+      validation_check:
         check: "{{ _task3_ok and _task4_ok }}"
         pass_msg: |
           Challenge 2 passed.

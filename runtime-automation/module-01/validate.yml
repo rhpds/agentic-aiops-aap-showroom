@@ -134,7 +134,7 @@
     # Informational: Tasks 3, 4, 5 (Lightspeed path — may not complete)
     # -------------------------------------------------------
     - name: Validate all tasks
-      rhpds.ftl.validation_check:
+      validation_check:
         check: "{{ _task1_ok and _task2_ok and _task6_ok }}"
         pass_msg: |
           Task 1: "Remediation Workflow" WFJT exists in AAP
