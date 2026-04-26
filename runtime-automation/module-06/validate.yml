@@ -43,7 +43,7 @@
         timeout: 30
         status_code: [200]
       register: r_ad_sim
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Check 2 — "Windows: Create Mattermost Ticket" job succeeded (EDA-triggered)
@@ -60,7 +60,7 @@
         timeout: 30
         status_code: [200]
       register: r_mm_ticket
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Check 3 — "Simulate Windows Firewall Toggle" job succeeded
@@ -76,7 +76,7 @@
         timeout: 30
         status_code: [200]
       register: r_fw_sim
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Check 4 — "Windows AI: Analyze and Ticket" job succeeded (EDA + Granite LLM)
@@ -93,7 +93,7 @@
         timeout: 60
         status_code: [200]
       register: r_ai_ticket
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Build result booleans

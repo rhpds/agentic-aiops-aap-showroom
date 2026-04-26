@@ -48,7 +48,7 @@
         timeout: 30
         status_code: [200]
       register: r_wfjt
-      ignore_errors: true
+      failed_when: false
 
     - name: Fail with clear message when WFJT not found
       ansible.builtin.fail:
@@ -81,7 +81,7 @@
         timeout: 30
         status_code: [200]
       register: r_existing_nodes
-      ignore_errors: true
+      failed_when: false
 
     - name: Set existing node count fact
       ansible.builtin.set_fact:
@@ -106,7 +106,7 @@
         timeout: 30
         status_code: [200]
       register: r_jt_lightspeed
-      ignore_errors: true
+      failed_when: false
       when: existing_node_count | int < 4
 
     - name: Look up Job Template "Commit Fix to Gitea"
@@ -120,7 +120,7 @@
         timeout: 30
         status_code: [200]
       register: r_jt_commit
-      ignore_errors: true
+      failed_when: false
       when: existing_node_count | int < 4
 
     - name: Look up Project "Lightspeed-Playbooks"
@@ -134,7 +134,7 @@
         timeout: 30
         status_code: [200]
       register: r_project_lightspeed
-      ignore_errors: true
+      failed_when: false
       when: existing_node_count | int < 4
 
     - name: Look up Job Template "Build HTTPD Remediation Template"
@@ -148,7 +148,7 @@
         timeout: 30
         status_code: [200]
       register: r_jt_build
-      ignore_errors: true
+      failed_when: false
       when: existing_node_count | int < 4
 
     # Collect IDs — fail fast if any prerequisite JT/Project is missing
@@ -193,7 +193,7 @@
           convergence: "any"
         status_code: [200, 201]
       register: r_node1
-      ignore_errors: true
+      failed_when: false
       when: existing_node_count | int < 4
 
     - name: Set Node 1 ID fact
@@ -221,7 +221,7 @@
           unified_job_template: "{{ ujt_commit | int }}"
         status_code: [200, 201]
       register: r_node2
-      ignore_errors: true
+      failed_when: false
       when: existing_node_count | int < 4
 
     - name: Set Node 2 ID fact
@@ -246,7 +246,7 @@
         body: "{\"id\": {{ node2_id }}}"
         status_code: [200, 201, 204]
       register: r_link12
-      ignore_errors: true
+      failed_when: false
       when:
         - existing_node_count | int < 4
         - node1_id is defined
@@ -270,7 +270,7 @@
           unified_job_template: "{{ ujt_project_sync | int }}"
         status_code: [200, 201]
       register: r_node3
-      ignore_errors: true
+      failed_when: false
       when: existing_node_count | int < 4
 
     - name: Set Node 3 ID fact
@@ -295,7 +295,7 @@
         body: "{\"id\": {{ node3_id }}}"
         status_code: [200, 201, 204]
       register: r_link23
-      ignore_errors: true
+      failed_when: false
       when:
         - existing_node_count | int < 4
         - node2_id is defined
@@ -319,7 +319,7 @@
           unified_job_template: "{{ ujt_build | int }}"
         status_code: [200, 201]
       register: r_node4
-      ignore_errors: true
+      failed_when: false
       when: existing_node_count | int < 4
 
     - name: Set Node 4 ID fact
@@ -344,7 +344,7 @@
         body: "{\"id\": {{ node4_id }}}"
         status_code: [200, 201, 204]
       register: r_link34
-      ignore_errors: true
+      failed_when: false
       when:
         - existing_node_count | int < 4
         - node3_id is defined
@@ -377,7 +377,7 @@
         timeout: 30
         status_code: [200]
       register: r_survey
-      ignore_errors: true
+      failed_when: false
 
     - name: Extract survey variable name from spec
       ansible.builtin.set_fact:
@@ -404,7 +404,7 @@
           extra_vars: "{{ {survey_var: remediation_prompt} }}"
         status_code: [200, 201]
       register: r_wf_launch
-      ignore_errors: true
+      failed_when: false
 
     - name: Fail if WFJT launch was rejected
       ansible.builtin.fail:
@@ -438,7 +438,7 @@
       until: r_wf_poll.json.status | default('pending') in ['successful', 'failed', 'error', 'canceled']
       retries: 30
       delay: 10
-      ignore_errors: true
+      failed_when: false
 
     - name: Set workflow job status fact
       ansible.builtin.set_fact:
@@ -532,7 +532,7 @@
           limit: "node1"
         status_code: [200, 201]
       register: r_exec_launch
-      ignore_errors: true
+      failed_when: false
       when: remediation_jt_id | string | length > 0
 
     - name: Set remediation job ID fact
@@ -564,7 +564,7 @@
       until: r_exec_poll.json.status | default('pending') in ['successful', 'failed', 'error', 'canceled']
       retries: 30
       delay: 10
-      ignore_errors: true
+      failed_when: false
       when: exec_job_id | default('') | string | length > 0
 
     - name: Set remediation job status fact

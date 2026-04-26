@@ -41,7 +41,7 @@
         timeout: 30
         status_code: [200]
       register: r_eda_webapp
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C2-0] Set Web App activation ID"
       ansible.builtin.set_fact:
@@ -59,7 +59,7 @@
         timeout: 30
         status_code: [200]
       register: r_eda_aiagent
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C2-0] Set AI Agent activation ID"
       ansible.builtin.set_fact:
@@ -86,7 +86,7 @@
           is_enabled: false
         status_code: [200, 202]
       when: eda_webapp_id | default('') | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C2-0] Disable 'AI Agent' EDA activation"
       ansible.builtin.uri:
@@ -104,7 +104,7 @@
           is_enabled: false
         status_code: [200, 202]
       when: eda_aiagent_id | default('') | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C2-0] Wait 15 s for EDA activations to deactivate"
       ansible.builtin.pause:
@@ -118,7 +118,7 @@
       ansible.builtin.shell: |
         ssh -o StrictHostKeyChecking=no -o BatchMode=yes bastion           'cd /home/lab-user/agentic-aiops && source /home/lab-user/.venv/bin/activate && timeout 280 python3 incident_agent.py all --break-first "Apache web server is down on node1"' 2>&1
       register: r_agent_job
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C2-1] Assert agent pipeline completed successfully"
       ansible.builtin.set_fact:
@@ -148,7 +148,7 @@
           - httpd.service
       register: r_httpd_c2
       changed_when: false
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C2-2] Set httpd-C2 status fact"
       ansible.builtin.set_fact:
@@ -174,7 +174,7 @@
           is_enabled: true
         status_code: [200, 202]
       when: eda_aiagent_id | default('') | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C3-1] Poll until AI Agent activation status is 'running' (max 3 min)"
       ansible.builtin.uri:
@@ -191,7 +191,7 @@
       retries: 18
       delay: 10
       when: eda_aiagent_id | default('') | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C3-2] GET 'Break Apache' job template ID"
       ansible.builtin.uri:
@@ -204,7 +204,7 @@
         timeout: 30
         status_code: [200]
       register: r_break_jt
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C3-2] Set Break Apache job template ID"
       ansible.builtin.set_fact:
@@ -227,7 +227,7 @@
         status_code: [200, 201, 202]
       register: r_break_launch
       when: break_jt_id | default('') | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C3-2] Set Break Apache launched job ID"
       ansible.builtin.set_fact:
@@ -249,7 +249,7 @@
       retries: 18
       delay: 10
       when: break_job_id | default('') | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C3-3] Wait 60 s for EDA to detect the event and trigger AI Agent job"
       ansible.builtin.pause:
@@ -271,7 +271,7 @@
         r_ai_jobs.json.results[0].status | default('') in ['successful', 'failed', 'error', 'canceled']
       retries: 18
       delay: 10
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C3-3] Set AI Agent job status fact"
       ansible.builtin.set_fact:
@@ -298,7 +298,7 @@
           - httpd.service
       register: r_httpd_c3
       changed_when: false
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C3-4] Set httpd-C3 status fact"
       ansible.builtin.set_fact:
@@ -324,7 +324,7 @@
           is_enabled: false
         status_code: [200, 202]
       when: eda_aiagent_id | default('') | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C3-5] Enable 'Web App' EDA activation (restore)"
       ansible.builtin.uri:
@@ -342,7 +342,7 @@
           is_enabled: true
         status_code: [200, 202]
       when: eda_webapp_id | default('') | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C3-5] Poll until Web App activation status is 'running' (max 3 min)"
       ansible.builtin.uri:
@@ -359,7 +359,7 @@
       retries: 18
       delay: 10
       when: eda_webapp_id | default('') | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: "[C3-5] Set Web App final status fact"
       ansible.builtin.set_fact:

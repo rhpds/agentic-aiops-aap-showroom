@@ -29,7 +29,7 @@
         validate_certs: false
         timeout: 10
       register: r_wfjt
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Check 2 — WFJT has exactly 4 nodes (only if WFJT found)
@@ -49,7 +49,7 @@
         timeout: 10
       register: r_nodes
       when: _wfjt_id | length > 0
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Check 3 — A Remediation Workflow job completed successfully
@@ -64,7 +64,7 @@
         validate_certs: false
         timeout: 10
       register: r_wf_jobs
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Check 4 — "Execute HTTPD Remediation" job template exists
@@ -79,7 +79,7 @@
         validate_certs: false
         timeout: 10
       register: r_jt
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Check 5 — "Execute HTTPD Remediation" ran successfully
@@ -94,7 +94,7 @@
         validate_certs: false
         timeout: 10
       register: r_httpd_jobs
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Check 6 — A successful httpd restoration job ran in AAP
@@ -111,7 +111,7 @@
         validate_certs: false
         timeout: 10
       register: r_restore_jobs
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Build task results

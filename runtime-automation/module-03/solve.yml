@@ -35,7 +35,7 @@
         timeout: 15
         status_code: [200]
       register: r_ping
-      ignore_errors: true
+      failed_when: false
 
     - name: Report controller reachability
       ansible.builtin.debug:
@@ -55,7 +55,7 @@
         timeout: 20
         status_code: [200]
       register: r_exact
-      ignore_errors: true
+      failed_when: false
 
     # ------------------------------------------------------------------
     # 3. Fall back to a broader search if exact query returned 0 results
@@ -74,7 +74,7 @@
       when:
         - r_exact.status | default(0) == 200
         - (r_exact.json.count | default(0)) == 0
-      ignore_errors: true
+      failed_when: false
 
     # ------------------------------------------------------------------
     # 4. Determine which result set to use and extract activation details
@@ -122,7 +122,7 @@
       when:
         - _activation_id is defined
         - _activation_status | default('') != 'running'
-      ignore_errors: true
+      failed_when: false
 
     # ------------------------------------------------------------------
     # 6. Poll until status == running (max ~90 s, 9 retries × 10 s delay)
@@ -144,7 +144,7 @@
       when:
         - _activation_id is defined
         - _activation_status | default('') != 'running'
-      ignore_errors: true
+      failed_when: false
 
     # ------------------------------------------------------------------
     # 7. Final status check (re-read for both the no-op and re-enable paths)
@@ -161,7 +161,7 @@
         status_code: [200]
       register: r_final
       when: _activation_id is defined
-      ignore_errors: true
+      failed_when: false
 
     - name: Set final status fact
       ansible.builtin.set_fact:

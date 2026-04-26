@@ -45,7 +45,7 @@
           - httpd.service
       changed_when: false
       register: r_httpd
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Check 2 — AAP job history: "Break Apache" ran successfully
@@ -61,7 +61,7 @@
         timeout: 10
         status_code: [200]
       register: r_break_apache
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Check 3 — AAP job history: "Restore Apache" ran successfully
@@ -77,7 +77,7 @@
         timeout: 10
         status_code: [200]
       register: r_restore_apache
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Check 4 — AAP job history: "AI Agent: Incident Response" succeeded
@@ -95,7 +95,7 @@
         timeout: 10
         status_code: [200]
       register: r_ai_agent_job
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Check 5 — EDA final state: "Web App" activation is running
@@ -111,7 +111,7 @@
         timeout: 10
         status_code: [200]
       register: r_eda_webapp
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Build boolean result facts

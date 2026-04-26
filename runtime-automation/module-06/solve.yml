@@ -25,7 +25,7 @@
     # Seconds to wait after simulation job succeeds before polling for EDA jobs
     eda_settle_delay: 30
     # Timestamp anchor — set once, used to filter jobs created after solve started
-    solve_start_time: "{{ ansible_date_time.iso8601 | default('') }}"
+    solve_start_time: "{{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}"
 
   tasks:
 
@@ -52,7 +52,7 @@
         timeout: 30
         status_code: [200]
       register: r_eda_activation
-      ignore_errors: true
+      failed_when: false
 
     - name: C1-1 | Set EDA activation facts
       ansible.builtin.set_fact:
@@ -60,7 +60,7 @@
           {{ (r_eda_activation.json.results | default([]) | first | default({})).id | default('') }}
         eda_activation_status: >-
           {{ (r_eda_activation.json.results | default([]) | first | default({})).status | default('unknown') }}
-      ignore_errors: true
+      failed_when: false
 
     - name: C1-1 | Enable Windows Events activation if not running
       ansible.builtin.uri:
@@ -76,7 +76,7 @@
         - eda_activation_id | string | length > 0
         - eda_activation_status | lower != 'running'
       register: r_eda_enable
-      ignore_errors: true
+      failed_when: false
 
     - name: C1-1 | Wait for EDA activation to reach Running state
       ansible.builtin.uri:
@@ -96,7 +96,7 @@
       when:
         - eda_activation_id | string | length > 0
         - eda_activation_status | lower != 'running'
-      ignore_errors: true
+      failed_when: false
 
     # -- C1-2: Launch "Simulate AD Account Creation" job template -------- #
     - name: C1-2 | Look up Simulate AD Account Creation job template
@@ -110,13 +110,13 @@
         timeout: 30
         status_code: [200]
       register: r_jt_ad
-      ignore_errors: true
+      failed_when: false
 
     - name: C1-2 | Set AD simulation job template ID
       ansible.builtin.set_fact:
         jt_ad_id: >-
           {{ (r_jt_ad.json.results | default([]) | first | default({})).id | default('') }}
-      ignore_errors: true
+      failed_when: false
 
     - name: C1-2 | Launch Simulate AD Account Creation
       ansible.builtin.uri:
@@ -132,13 +132,13 @@
         status_code: [200, 201, 202]
       register: r_ad_launch
       when: jt_ad_id | string | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: C1-2 | Set AD simulation job ID
       ansible.builtin.set_fact:
         ad_job_id: "{{ r_ad_launch.json.id | default('') }}"
       when: r_ad_launch is not skipped
-      ignore_errors: true
+      failed_when: false
 
     - name: C1-2 | Poll until AD simulation job succeeds (timeout 120 s)
       ansible.builtin.uri:
@@ -155,14 +155,14 @@
       retries: 24
       delay: 5
       when: ad_job_id | string | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: C1-2 | Record AD simulation job finish epoch
       ansible.builtin.set_fact:
         ad_job_finished: true
         ad_job_ok: "{{ r_ad_job_status.json.status | default('') == 'successful' }}"
       when: r_ad_job_status is not skipped
-      ignore_errors: true
+      failed_when: false
 
     # -- C1-3: Wait for EDA to fire "Windows: Create Mattermost Ticket" - #
     - name: C1-3 | Wait {{ eda_settle_delay }}s for EDA to detect AD event
@@ -186,14 +186,14 @@
           | selectattr('status', 'equalto', 'successful') | list | length) > 0
       retries: 12
       delay: 5
-      ignore_errors: true
+      failed_when: false
 
     - name: C1-3 | Set Mattermost ticket job status fact
       ansible.builtin.set_fact:
         mattermost_ticket_ok: >-
           {{ (r_mattermost_ticket_job.json.results | default([])
               | selectattr('status', 'equalto', 'successful') | list | length) > 0 }}
-      ignore_errors: true
+      failed_when: false
 
     # ================================================================== #
     #  CHALLENGE 2 — Firewall Event with AI Enrichment                   #
@@ -211,13 +211,13 @@
         timeout: 30
         status_code: [200]
       register: r_jt_fw
-      ignore_errors: true
+      failed_when: false
 
     - name: C2-1 | Set firewall simulation job template ID
       ansible.builtin.set_fact:
         jt_fw_id: >-
           {{ (r_jt_fw.json.results | default([]) | first | default({})).id | default('') }}
-      ignore_errors: true
+      failed_when: false
 
     - name: C2-1 | Launch Simulate Windows Firewall Toggle
       ansible.builtin.uri:
@@ -233,13 +233,13 @@
         status_code: [200, 201, 202]
       register: r_fw_launch
       when: jt_fw_id | string | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: C2-1 | Set firewall simulation job ID
       ansible.builtin.set_fact:
         fw_job_id: "{{ r_fw_launch.json.id | default('') }}"
       when: r_fw_launch is not skipped
-      ignore_errors: true
+      failed_when: false
 
     - name: C2-1 | Poll until firewall simulation job succeeds (timeout 120 s)
       ansible.builtin.uri:
@@ -256,14 +256,14 @@
       retries: 24
       delay: 5
       when: fw_job_id | string | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: C2-1 | Record firewall simulation job finish epoch
       ansible.builtin.set_fact:
         fw_job_finished: true
         fw_job_ok: "{{ r_fw_job_status.json.status | default('') == 'successful' }}"
       when: r_fw_job_status is not skipped
-      ignore_errors: true
+      failed_when: false
 
     # -- C2-2: Wait for EDA to fire "Windows AI: Analyze and Ticket" --- #
     - name: C2-2 | Wait {{ eda_settle_delay }}s for EDA to detect firewall event
@@ -288,14 +288,14 @@
           | selectattr('status', 'equalto', 'successful') | list | length) > 0
       retries: 24
       delay: 10
-      ignore_errors: true
+      failed_when: false
 
     - name: C2-2 | Set AI ticket job status fact
       ansible.builtin.set_fact:
         ai_ticket_ok: >-
           {{ (r_ai_ticket_job.json.results | default([])
               | selectattr('status', 'equalto', 'successful') | list | length) > 0 }}
-      ignore_errors: true
+      failed_when: false
 
     # ================================================================== #
     #  Final Report                                                       #

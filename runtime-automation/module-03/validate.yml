@@ -29,7 +29,7 @@
         timeout: 15
         status_code: [200]
       register: r_exact
-      ignore_errors: true
+      failed_when: false
 
     - name: Broader search when exact returns nothing (icontains=ospf)
       ansible.builtin.uri:
@@ -45,7 +45,7 @@
       when:
         - r_exact.status | default(0) == 200
         - (r_exact.json.count | default(0)) == 0
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Build result facts

@@ -49,7 +49,7 @@
         timeout: 30
         status_code: 200
       register: r_org
-      ignore_errors: true
+      failed_when: false
 
     - name: Set default_org_id
       ansible.builtin.set_fact:
@@ -72,7 +72,7 @@
         timeout: 30
         status_code: 200
       register: r_wfjt_check
-      ignore_errors: true
+      failed_when: false
 
     - name: Set wfjt_exists fact
       ansible.builtin.set_fact:
@@ -102,7 +102,7 @@
       when:
         - default_org_id is defined
         - not (wfjt_exists | default(false) | bool)
-      ignore_errors: true
+      failed_when: false
 
     - name: Set wfjt_id from newly created WFJT
       ansible.builtin.set_fact:
@@ -126,7 +126,7 @@
         timeout: 30
         status_code: 200
       register: r_jt_apache
-      ignore_errors: true
+      failed_when: false
 
     - name: Lookup JT - RHEL AI Analyze Incident
       ansible.builtin.uri:
@@ -139,7 +139,7 @@
         timeout: 30
         status_code: 200
       register: r_jt_analyze
-      ignore_errors: true
+      failed_when: false
 
     - name: Lookup JT - Notify via Mattermost
       ansible.builtin.uri:
@@ -152,7 +152,7 @@
         timeout: 30
         status_code: 200
       register: r_jt_mattermost
-      ignore_errors: true
+      failed_when: false
 
     - name: Lookup JT - Build Ansible Lightspeed Job Template
       ansible.builtin.uri:
@@ -165,7 +165,7 @@
         timeout: 30
         status_code: 200
       register: r_jt_lightspeed_build
-      ignore_errors: true
+      failed_when: false
 
     - name: Set job template ID facts
       ansible.builtin.set_fact:
@@ -195,7 +195,7 @@
         status_code: 200
       register: r_existing_nodes
       when: wfjt_id | string | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: Determine if nodes need to be created or re-linked
       ansible.builtin.set_fact:
@@ -228,7 +228,7 @@
         - r_existing_nodes is not failed
         - not (nodes_fully_configured | default(false) | bool)
         - existing_node_count | int > 0
-      ignore_errors: true
+      failed_when: false
 
     # ------------------------------------------------------------------
     # 5. Create Node 1 (root): Apache Service Status Check
@@ -254,7 +254,7 @@
         - wfjt_id | string | length > 0
         - jt_apache_id | string | length > 0
         - not (nodes_fully_configured | default(false) | bool)
-      ignore_errors: true
+      failed_when: false
 
     - name: Set node1_id
       ansible.builtin.set_fact:
@@ -286,7 +286,7 @@
         - wfjt_id | string | length > 0
         - jt_analyze_id | string | length > 0
         - not (nodes_fully_configured | default(false) | bool)
-      ignore_errors: true
+      failed_when: false
 
     - name: Set node2_id
       ansible.builtin.set_fact:
@@ -318,7 +318,7 @@
         - wfjt_id | string | length > 0
         - jt_mattermost_id | string | length > 0
         - not (nodes_fully_configured | default(false) | bool)
-      ignore_errors: true
+      failed_when: false
 
     - name: Set node3_id
       ansible.builtin.set_fact:
@@ -350,7 +350,7 @@
         - wfjt_id | string | length > 0
         - jt_lightspeed_build_id | string | length > 0
         - not (nodes_fully_configured | default(false) | bool)
-      ignore_errors: true
+      failed_when: false
 
     - name: Set node4_id
       ansible.builtin.set_fact:
@@ -379,7 +379,7 @@
         - node1_id is defined
         - node2_id is defined
         - not (nodes_fully_configured | default(false) | bool)
-      ignore_errors: true
+      failed_when: false
 
     # ------------------------------------------------------------------
     # 10. Link nodes: Node 2 -> Node 3 (success)
@@ -401,7 +401,7 @@
         - node2_id is defined
         - node3_id is defined
         - not (nodes_fully_configured | default(false) | bool)
-      ignore_errors: true
+      failed_when: false
 
     # ------------------------------------------------------------------
     # 11. Link nodes: Node 3 -> Node 4 (success)
@@ -423,7 +423,7 @@
         - node3_id is defined
         - node4_id is defined
         - not (nodes_fully_configured | default(false) | bool)
-      ignore_errors: true
+      failed_when: false
 
     # ------------------------------------------------------------------
     # 12. Re-fetch nodes to confirm final state
@@ -440,7 +440,7 @@
         status_code: 200
       register: r_nodes_final
       when: wfjt_id | string | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: Set node_count fact
       ansible.builtin.set_fact:
@@ -461,7 +461,7 @@
         timeout: 30
         status_code: 200
       register: r_jt_break
-      ignore_errors: true
+      failed_when: false
 
     - name: Set break_apache_jt_id
       ansible.builtin.set_fact:
@@ -485,7 +485,7 @@
         status_code: [200, 201]
       register: r_break_launch
       when: break_apache_jt_id | string | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: Set break_job_id
       ansible.builtin.set_fact:
@@ -512,7 +512,7 @@
       retries: 18
       delay: 10
       when: break_job_id | string | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: Set break_job_status
       ansible.builtin.set_fact:
@@ -536,7 +536,7 @@
         status_code: 200
       register: r_break_detail
       when: break_job_id | string | length > 0
-      ignore_errors: true
+      failed_when: false
 
     - name: Set break_finished_time reference
       ansible.builtin.set_fact:
@@ -595,7 +595,7 @@
       when:
         - wfjt_id | string | length > 0
         - not (eda_triggered | default(false) | bool)
-      ignore_errors: true
+      failed_when: false
 
     - name: Set direct_launch_job_id fact
       ansible.builtin.set_fact:
@@ -623,7 +623,7 @@
         r_wf_poll.json.results[0].status in ['successful', 'failed', 'error', 'canceled']
       retries: 30
       delay: 10
-      ignore_errors: true
+      failed_when: false
 
     - name: Set workflow_job_status fact
       ansible.builtin.set_fact:
@@ -647,7 +647,7 @@
         timeout: 30
         status_code: 200
       register: r_jt_remediation_gen
-      ignore_errors: true
+      failed_when: false
 
     - name: Check Remediation Workflow WFJT exists
       ansible.builtin.uri:
@@ -660,7 +660,7 @@
         timeout: 30
         status_code: 200
       register: r_wfjt_remediation
-      ignore_errors: true
+      failed_when: false
 
     - name: Set artifact facts
       ansible.builtin.set_fact:

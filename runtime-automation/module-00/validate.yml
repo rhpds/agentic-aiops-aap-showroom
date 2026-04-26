@@ -35,7 +35,7 @@
         timeout: 10
         status_code: 200
       register: r_wfjt
-      ignore_errors: true
+      failed_when: false
 
     - name: Set wfjt_id when found
       ansible.builtin.set_fact:
@@ -59,7 +59,7 @@
         status_code: 200
       register: r_nodes
       when: wfjt_id is defined and wfjt_id | string | length > 0
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Check 3 — A workflow job for that WFJT completed successfully
@@ -75,7 +75,7 @@
         timeout: 10
         status_code: 200
       register: r_wf_job
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Check 4 — JT "Lightspeed Remediation Playbook Generator" exists
@@ -91,7 +91,7 @@
         timeout: 10
         status_code: 200
       register: r_jt_remediation
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Check 5 — WFJT "Remediation Workflow" exists
@@ -107,7 +107,7 @@
         timeout: 10
         status_code: 200
       register: r_wfjt_remediation
-      ignore_errors: true
+      failed_when: false
 
     # -------------------------------------------------------
     # Build task result booleans
