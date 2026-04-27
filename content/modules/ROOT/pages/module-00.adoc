@@ -43,7 +43,7 @@ curl -X POST {litellm_api_base_url}/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer {litellm_virtual_key}" \
   -d '{
-    "model": "{litellm_available_models_list}",
+    "model": "openai/granite-3-2-8b-instruct",
     "prompt": "What is the capital of USA?",
     "max_tokens": 100,
     "temperature": 0
@@ -58,7 +58,7 @@ curl -X POST {litellm_api_base_url}/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer {litellm_virtual_key}" \
   -d '{
-    "model": "{litellm_available_models_list}",
+    "model": "openai/granite-3-2-8b-instruct",
     "prompt": "systemd[1]: httpd.service: Failed with result exit-code. Suggest a fix for Apache.",
     "max_tokens": 150,
     "temperature": 0.6
