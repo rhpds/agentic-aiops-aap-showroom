@@ -281,7 +281,7 @@ Expected output:
 
 The triage agent is the first responder. Its job is to discover what automation is available, confirm the target host exists, and create an action plan for resolving the issue. It does not take any action itself. It only investigates and recommends.
 
-In this step, you are *not* breaking anything yet. Apache is still running normally on node1. You are passing a simulated alert message to the triage agent to see how it reasons about a reported problem. The agent will discover available automation, build an action plan, and then confirm that Apache is actually running fine, demonstrating that it checks reality before taking action.
+In this step, you are *not* breaking anything yet. Apache is still running normally on node1. You are passing a simulated alert message to the triage agent to see how it reasons about a reported problem. The agent will query AAP for available job templates, confirm the target host exists in inventory, review recent job history, and build a remediation plan. Note that the triage agent only investigates and recommends. It does not execute any jobs or verify the actual state of Apache. It builds its understanding from the information available through MCP (templates, hosts, job history) and proposes a plan for the executor agent to carry out in the next step.
 
 Run only the triage agent first to see how it analyzes the situation:
 
@@ -294,10 +294,13 @@ Wait for the agent to complete (approximately 15-30 seconds). Review the output 
 
 *What to verify in the triage output:*
 
-* *PROBLEM:* the agent should identify the Apache shutdown
-* *TEMPLATES:* the agent should list relevant templates: `Apache Service Status Check`, `Restore Apache`
-* *HOST:* the agent should confirm that `node1` exists in `lab-inventory`
-* *PLAN:* the agent should propose a numbered sequence: check status, restore, verify
+* *PROBLEM:* the agent restates the reported issue
+* *TEMPLATES:* the agent lists relevant templates it discovered via MCP: `Apache Service Status Check`, `Restore Apache`
+* *HOST:* the agent confirms that `node1` exists in `lab-inventory`
+* *RECENT ACTIVITY:* the agent may note recent job history (e.g., previous status checks or restores that ran successfully)
+* *PLAN:* the agent proposes a numbered sequence: check status, restore, verify
+
+Since Apache is actually running fine right now, the agent's plan still proposes remediation steps based on the reported alert. The triage agent takes the reported problem at face value and plans accordingly. It does not verify whether the problem is real. That verification happens when the executor agent runs the plan in the next step.
 
 // TODO: Add screenshot of triage agent output
 
@@ -328,10 +331,11 @@ Wait for the agent to complete (approximately 60-90 seconds, as it launches and 
 
 *What to verify in the execution output:*
 
-* The agent runs the triage step internally first (to know what to do)
+* The agent runs the triage step internally first (to build a plan)
 * It launches job templates through Ansible Automation Platform, *not* by running commands directly
 * Each job is monitored until completion
 * The output reports success or failure for each job
+* Since Apache is currently running fine, the status check job will report that httpd is active. The agent may still run "Restore Apache" as a precaution, or it may skip it after seeing the service is healthy. Either behavior is valid; the agent adapts based on what it observes.
 
 // TODO: Add screenshot of executor agent output
 
